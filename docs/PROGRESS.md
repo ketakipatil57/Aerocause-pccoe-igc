@@ -5,7 +5,7 @@
 
 ---
 
-## Status: PHASE 2 IN PROGRESS — AI SERVICE COMPLETE
+## Status: PHASE 3 COMPLETE — FRONTEND IMPLEMENTED
 
 ---
 
@@ -21,12 +21,16 @@
 - User-managed manifest corpus with PDF/TXT/MD parsing, embeddings, persisted ChromaDB, and retrieval tests
 - AI service API, Docker, configuration, and test documentation
 - AI service verification: 24 tests pass and Ruff reports no findings
+- React/Vite civic-tech frontend with Incident Desk, incident detail, replay, evaluation, citizen view, and Sources & Method
+- Frontend mock fixtures are clearly labelled; replay-to-review flow and language templates are covered by tests
+- Incident detail API now includes related QC flags and citation metadata for the Evidence & QC view
+- Frontend verification: 3 component/flow tests pass and production build succeeds
 
 ## 🔄 IN PROGRESS
-- Frontend (React, Vite, TypeScript, Tailwind)
+- Docker/browser end-to-end verification with live backend and AI containers
 
 ## ❌ NOT STARTED
-- Frontend (React, Vite, TypeScript, Tailwind)
+- Capture and review demo screenshots against a full Compose deployment
 
 ---
 
@@ -57,10 +61,12 @@ curl -X POST http://localhost:8080/api/evaluation/run
 - No official documents are bundled in the AI corpus; citations appear only after the user supplies and indexes reviewed sources.
 - Proper-noun detection and action-to-passage grounding are heuristic and require human review.
 - AI service tests ran on the available Python 3.14 runtime, not the target Python 3.11; the Docker daemon was unavailable for an image build.
+- Docker daemon is unavailable in this environment, so full Compose startup and live-service browser validation remain unverified. Frontend was exercised in browser using its labelled mock-data mode.
+- AQI breakpoints are configurable heuristics and require official-source verification; citizen precaution text is an explicit placeholder.
 
 ---
 
 ## Next 3 Tasks (in order)
-1. Scaffold frontend: React, Vite, TypeScript, Tailwind.
-2. Verify all five synthetic replay outcomes against expected hypotheses.
-3. Perform end-to-end backend/AI/frontend integration.
+1. Run the full Docker Compose stack and validate live API integration.
+2. Capture and review the Incident Desk, Incident Detail, Evaluation, and Citizen View screenshots.
+3. Verify all five synthetic replay outcomes against expected hypotheses.

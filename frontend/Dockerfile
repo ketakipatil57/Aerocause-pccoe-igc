@@ -1,0 +1,21 @@
+FROM node:22-alpine AS build
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+ARG VITE_API_BASE_URL=/api
+ARG VITE_AI_API_BASE_URL=/ai
+ARG VITE_POLL_INTERVAL_MS=10000
+ARG VITE_OFFICIAL_REPORT_URL=https://cpcb.nic.in/
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_AI_API_BASE_URL=$VITE_AI_API_BASE_URL
+ENV VITE_POLL_INTERVAL_MS=$VITE_POLL_INTERVAL_MS
+ENV VITE_OFFICIAL_REPORT_URL=$VITE_OFFICIAL_REPORT_URL
+RUN npm run build
+
+FROM nginx:1.27-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80

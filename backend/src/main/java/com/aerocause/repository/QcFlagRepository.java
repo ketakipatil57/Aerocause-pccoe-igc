@@ -13,4 +13,6 @@ public interface QcFlagRepository extends JpaRepository<QcFlag, Long> {
             Station station, String pollutant, Instant since);
     List<QcFlag> findByStationAndWindowStartBetween(
             Station station, Instant from, Instant to);
+    List<QcFlag> findByStationAndPollutantAndWindowStartBetween(
+            Station station, String pollutant, Instant from, Instant to);
 }

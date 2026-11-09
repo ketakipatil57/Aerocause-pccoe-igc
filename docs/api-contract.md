@@ -88,6 +88,8 @@ Imports all episode CSVs from /data/episodes/ into the database.
 ### GET /api/incidents
 **Query:** `status` (optional), `stationId` (optional)
 
+Each incident summary includes its `topHypothesis` (when computed) and the `qcFlags` in that incident's pollutant window. Incident detail returns bounded JSON views of the incident, hypotheses, evidence items, QC flags, latest brief, citations, and reviews; related objects do not recursively embed their parent.
+
 ### GET /api/incidents/{id}
 Full incident detail including evidence items, hypotheses, brief (if generated), citations, reviews.
 
@@ -105,6 +107,12 @@ Full incident detail including evidence items, hypotheses, brief (if generated),
     "evidenceAgainst": [...],
     "missing": [...]
   },
+  "qcFlags": [{
+    "rule": "ISOLATED_SPIKE",
+    "severity": "WARNING",
+    "detail": "Reading differs from nearby station pattern."
+  }],
+  "citations": [],
   "brief": { ... },
   "dataNotice": "SAMPLE DATA (synthetic)"
 }

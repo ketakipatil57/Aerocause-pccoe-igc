@@ -40,6 +40,7 @@ class Passage:
         return {
             "doc_key": self.doc_key,
             "title": self.title,
+            "publisher": self.publisher,
             "version": self.version,
             "url": self.url,
             "passage_id": self.passage_id,

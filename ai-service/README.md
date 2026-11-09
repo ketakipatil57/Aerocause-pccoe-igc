@@ -26,6 +26,7 @@ The ChromaDB collection persists under `ai-service/chromadb_data` locally. Its d
 
 - `GET /health` reports service and provider readiness.
 - `POST /investigate` accepts the backend evidence-package JSON directly as the request body and returns `{brief, validator_status, llm_mode, violations, retrieved_passages}`.
+- Retrieved passages include their document key, title, publisher, version, URL, passage ID, page/section reference, and excerpt for source inspection in the frontend.
 - `POST /citizen-summary` accepts `aqi`, `category`, `evidence_summary`, `language` (`en`, `hi`, `mr`), and optional `precaution_templates`. The service never invents precautions. Hindi and Marathi templates are marked for native-speaker review.
 - `POST /retrieve` accepts `{ "query": "...", "top_k": 5 }` and returns an empty `passages` list when no corpus is indexed.
 

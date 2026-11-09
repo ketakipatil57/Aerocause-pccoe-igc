@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from ai_service.models import PassageResponse
 from ai_service.rag.corpus import CorpusLoader, Passage
 from ai_service.rag.index import ChromaPassageIndex
 from ai_service.rag.retrieval import RetrievalService
@@ -53,6 +54,8 @@ def test_loader_preserves_markdown_sections_and_passage_metadata(tmp_path):
     assert all(item.doc_key == "FAKE_FOR_TESTS" for item in passages)
     assert all(item.reference == "FAKE_FOR_TESTS only" for item in passages)
     assert all(item.passage_id.startswith("FAKE_FOR_TESTS:") for item in passages)
+    responses = [PassageResponse(**item.as_response()) for item in passages]
+    assert all(item.publisher == "Fixture" for item in responses)
 
 
 def test_chroma_index_persists_test_passage_and_returns_references(tmp_path):

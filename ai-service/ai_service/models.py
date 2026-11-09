@@ -39,6 +39,7 @@ class InvestigationRequest(RootModel[dict[str, Any]]):
 class PassageResponse(StrictModel):
     doc_key: str
     title: str
+    publisher: str
     version: str | None = None
     url: str | None = None
     passage_id: str

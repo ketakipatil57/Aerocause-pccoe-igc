@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.*;
@@ -25,6 +26,8 @@ public class ApiController {
     private final IncidentRepository incidentRepo;
     private final HypothesisRepository hypothesisRepo;
     private final EvidenceItemRepository evidenceItemRepo;
+    private final QcFlagRepository qcFlagRepo;
+    private final CitationRepository citationRepo;
     private final BriefRepository briefRepo;
     private final ReviewRepository reviewRepo;
     private final AuditService auditService;
@@ -38,6 +41,8 @@ public class ApiController {
                          IncidentRepository incidentRepo,
                          HypothesisRepository hypothesisRepo,
                          EvidenceItemRepository evidenceItemRepo,
+                         QcFlagRepository qcFlagRepo,
+                         CitationRepository citationRepo,
                          BriefRepository briefRepo,
                          ReviewRepository reviewRepo,
                          AuditService auditService,
@@ -50,6 +55,8 @@ public class ApiController {
         this.incidentRepo = incidentRepo;
         this.hypothesisRepo = hypothesisRepo;
         this.evidenceItemRepo = evidenceItemRepo;
+        this.qcFlagRepo = qcFlagRepo;
+        this.citationRepo = citationRepo;
         this.briefRepo = briefRepo;
         this.reviewRepo = reviewRepo;
         this.auditService = auditService;
@@ -151,31 +158,153 @@ public class ApiController {
 
     @GetMapping("/incidents")
     @Operation(summary = "List incidents, optionally filtered by status")
-    public List<Incident> getIncidents(
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getIncidents(
             @RequestParam(required = false) String status) {
-        if (status != null) {
-            return incidentRepo.findByStatus(Incident.IncidentStatus.valueOf(status.toUpperCase()));
-        }
-        return incidentRepo.findAll();
+        List<Incident> incidents = status != null
+                ? incidentRepo.findByStatus(Incident.IncidentStatus.valueOf(status.toUpperCase()))
+                : incidentRepo.findAll();
+        return incidents.stream().map(this::toIncidentSummary).toList();
+    }
+
+    private Map<String, Object> toIncidentSummary(Incident incident) {
+        Map<String, Object> summary = toIncidentView(incident);
+        Long incidentId = incident.getId();
+        List<Hypothesis> hypotheses = hypothesisRepo.findByIncidentIdOrderByRankAsc(incidentId);
+        summary.put("topHypothesis", hypotheses.isEmpty() ? null : toHypothesisView(hypotheses.get(0)));
+        summary.put("qcFlags", qcFlagRepo.findByStationAndPollutantAndWindowStartBetween(
+                incident.getStation(), incident.getPollutant(),
+                incident.getWindowStart(), incident.getWindowEnd()).stream()
+                .map(this::toQcFlagView).toList());
+        return summary;
     }
 
     @GetMapping("/incidents/{id}")
     @Operation(summary = "Get full incident detail including evidence, hypotheses, brief, reviews")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getIncident(@PathVariable Long id) {
         return incidentRepo.findById(id)
                 .map(inc -> {
                     Map<String, Object> detail = new LinkedHashMap<>();
-                    detail.put("incident", inc);
-                    detail.put("hypotheses", hypothesisRepo.findByIncidentIdOrderByRankAsc(id));
-                    detail.put("evidenceItems", evidenceItemRepo.findByIncidentId(id));
-                    detail.put("brief", briefRepo.findTopByIncidentIdOrderByGeneratedAtDesc(id).orElse(null));
-                    detail.put("reviews", reviewRepo.findByIncidentIdOrderByCreatedAtDesc(id));
+                    detail.put("incident", toIncidentView(inc));
+                    detail.put("hypotheses", hypothesisRepo.findByIncidentIdOrderByRankAsc(id).stream()
+                            .map(this::toHypothesisView).toList());
+                    detail.put("evidenceItems", evidenceItemRepo.findByIncidentId(id).stream()
+                            .map(this::toEvidenceItemView).toList());
+                    detail.put("qcFlags", qcFlagRepo.findByStationAndPollutantAndWindowStartBetween(
+                            inc.getStation(), inc.getPollutant(), inc.getWindowStart(), inc.getWindowEnd())
+                            .stream().map(this::toQcFlagView).toList());
+                    detail.put("brief", briefRepo.findTopByIncidentIdOrderByGeneratedAtDesc(id)
+                            .map(this::toBriefView).orElse(null));
+                    detail.put("citations", citationRepo.findByIncidentId(id).stream()
+                            .map(this::toCitationView).toList());
+                    detail.put("reviews", reviewRepo.findByIncidentIdOrderByCreatedAtDesc(id).stream()
+                            .map(this::toReviewView).toList());
                     detail.put("dataNotice", inc.getSynthetic() ? "SAMPLE DATA (synthetic)" : null);
                     detail.put("decisionSupportNotice",
                             "Decision support only. Final decisions belong to qualified officers.");
                     return ResponseEntity.ok(detail);
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    private Map<String, Object> toIncidentView(Incident incident) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("id", incident.getId());
+        view.put("station", toStationView(incident.getStation()));
+        view.put("pollutant", incident.getPollutant());
+        view.put("detectedAt", incident.getDetectedAt());
+        view.put("windowStart", incident.getWindowStart());
+        view.put("windowEnd", incident.getWindowEnd());
+        view.put("peakValue", incident.getPeakValue());
+        view.put("baselineValue", incident.getBaselineValue());
+        view.put("status", incident.getStatus());
+        view.put("episodeId", incident.getEpisodeId());
+        view.put("synthetic", incident.getSynthetic());
+        return view;
+    }
+
+    private Map<String, Object> toStationView(Station station) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("id", station.getId());
+        view.put("externalId", station.getExternalId());
+        view.put("name", station.getName());
+        view.put("city", station.getCity());
+        view.put("lat", station.getLat());
+        view.put("lon", station.getLon());
+        view.put("provider", station.getProvider());
+        return view;
+    }
+
+    private Map<String, Object> toHypothesisView(Hypothesis hypothesis) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("id", hypothesis.getId());
+        view.put("type", hypothesis.getType());
+        view.put("score", hypothesis.getScore());
+        view.put("confidenceLabel", hypothesis.getConfidenceLabel());
+        view.put("evidenceForJson", hypothesis.getEvidenceForJson());
+        view.put("evidenceAgainstJson", hypothesis.getEvidenceAgainstJson());
+        view.put("missingJson", hypothesis.getMissingJson());
+        view.put("rank", hypothesis.getRank());
+        return view;
+    }
+
+    private Map<String, Object> toEvidenceItemView(EvidenceItem evidenceItem) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("id", evidenceItem.getId());
+        view.put("type", evidenceItem.getType());
+        view.put("summary", evidenceItem.getSummary());
+        view.put("dataJson", evidenceItem.getDataJson());
+        view.put("sourceRef", evidenceItem.getSourceRef());
+        return view;
+    }
+
+    private Map<String, Object> toQcFlagView(QcFlag flag) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("id", flag.getId());
+        view.put("pollutant", flag.getPollutant());
+        view.put("windowStart", flag.getWindowStart());
+        view.put("windowEnd", flag.getWindowEnd());
+        view.put("rule", flag.getRule());
+        view.put("severity", flag.getSeverity());
+        view.put("detail", flag.getDetail());
+        view.put("createdAt", flag.getCreatedAt());
+        return view;
+    }
+
+    private Map<String, Object> toBriefView(Brief brief) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("id", brief.getId());
+        view.put("generatedAt", brief.getGeneratedAt());
+        view.put("contentJson", brief.getContentJson());
+        view.put("validatorStatus", brief.getValidatorStatus());
+        view.put("llmMode", brief.getLlmMode());
+        return view;
+    }
+
+    private Map<String, Object> toCitationView(Citation citation) {
+        Map<String, Object> document = new LinkedHashMap<>();
+        document.put("docKey", citation.getDocument().getDocKey());
+        document.put("title", citation.getDocument().getTitle());
+        document.put("publisher", citation.getDocument().getPublisher());
+        document.put("version", citation.getDocument().getVersion());
+        document.put("url", citation.getDocument().getUrl());
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("id", citation.getId());
+        view.put("passageRef", citation.getPassageRef());
+        view.put("excerpt", citation.getExcerpt());
+        view.put("document", document);
+        return view;
+    }
+
+    private Map<String, Object> toReviewView(Review review) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("id", review.getId());
+        view.put("reviewer", review.getReviewer());
+        view.put("decision", review.getDecision());
+        view.put("comment", review.getComment());
+        view.put("createdAt", review.getCreatedAt());
+        return view;
     }
 
     @PostMapping("/incidents/{id}/investigate")

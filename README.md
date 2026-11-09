@@ -45,7 +45,7 @@ Three services:
 - Java 17+
 - Maven 3.9+
 - Python 3.11+
-- Node.js 20+ and pnpm
+- Node.js 20+ and npm
 
 ### 1. Clone and configure
 ```bash
@@ -82,8 +82,8 @@ python -m uvicorn ai_service.main:app --reload --port 8000
 ### 5. Start the frontend
 ```bash
 cd frontend
-pnpm install
-pnpm dev
+npm ci
+npm run dev
 # UI at http://localhost:5173
 ```
 
@@ -132,7 +132,7 @@ pytest tests/ -v
 
 # Frontend tests
 cd frontend
-pnpm test
+npm test
 ```
 
 ---
