@@ -1,0 +1,54 @@
+# Java/Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+*.iml
+.idea/
+*.ipr
+*.iws
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+chromadb_data/
+*.db
+
+# Node / Frontend
+node_modules/
+dist/
+.next/
+.nuxt/
+.cache/
+*.log
+
+# Environment & secrets
+.env
+*.env.local
+*.env.production
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Misc
+*.bak
+*.swp
+*~

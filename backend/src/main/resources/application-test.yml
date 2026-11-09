@@ -1,0 +1,102 @@
+# Test profile — always uses H2 in-memory
+spring:
+  datasource:
+    url: jdbc:h2:mem:aerocause_test;DB_CLOSE_DELAY=-1;MODE=MySQL;NON_KEYWORDS=VALUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    url: jdbc:h2:mem:aerocause_test;DB_CLOSE_DELAY=-1;MODE=MySQL;NON_KEYWORDS=VALUE
+    user: sa
+    password:
+  h2:
+    console:
+      enabled: false
+
+aerocause:
+  ingestion:
+    polling-enabled: false
+  firms:
+    enabled: false
+  ai-service:
+    base-url: http://localhost:8000
+  anomaly:
+    baseline-days: 14
+    baseline-min-readings: 5
+    robust-z-threshold: 3.5
+    consecutive-readings: 2
+    min-absolute-increase:
+      PM25: 25
+      PM10: 50
+      NO2: 30
+      SO2: 20
+      CO: 0.5
+      O3: 30
+  qc:
+    flatline-window: 5
+    flatline-tolerance: 0.001
+    isolated-spike-min-stations: 2
+    isolated-spike-ratio: 3.0
+    stale-data-minutes: 90
+    out-of-range:
+      PM25: { min: 0, max: 1000 }
+      PM10: { min: 0, max: 1500 }
+      NO2:  { min: 0, max: 500  }
+      SO2:  { min: 0, max: 500  }
+      CO:   { min: 0, max: 50   }
+      O3:   { min: 0, max: 500  }
+  fingerprinting:
+    inconclusive-margin-threshold: 0.15
+    inconclusive-missing-penalty: 0.1
+    rules:
+      pm-ratio:
+        low-ratio-threshold: 0.45
+        high-ratio-threshold: 0.60
+        dust-weight: 0.30
+        combustion-weight: 0.25
+      no2-co:
+        no2-threshold-ugm3: 60
+        co-threshold-ppm: 1.5
+        combustion-weight: 0.30
+      so2:
+        threshold-ugm3: 40
+        industrial-weight: 0.35
+      wind:
+        low-wind-threshold: 2.0
+        stagnant-blh-threshold: 500
+        stagnant-weight: 0.25
+        regional-spread-weight: 0.15
+      fire-hotspot:
+        biomass-weight: 0.40
+      sensor-fault:
+        qc-flag-weight: 0.50
+        isolation-weight: 0.30
+  aqi:
+    breakpoints:
+      PM25:
+        - { clow: 0,   chigh: 30,  ilow: 0,   ihigh: 50  }
+        - { clow: 31,  chigh: 60,  ilow: 51,  ihigh: 100 }
+        - { clow: 61,  chigh: 90,  ilow: 101, ihigh: 200 }
+        - { clow: 91,  chigh: 120, ilow: 201, ihigh: 300 }
+        - { clow: 121, chigh: 250, ilow: 301, ihigh: 400 }
+        - { clow: 251, chigh: 500, ilow: 401, ihigh: 500 }
+      PM10:
+        - { clow: 0,   chigh: 50,  ilow: 0,   ihigh: 50  }
+        - { clow: 51,  chigh: 100, ilow: 51,  ihigh: 100 }
+        - { clow: 101, chigh: 250, ilow: 101, ihigh: 200 }
+        - { clow: 251, chigh: 350, ilow: 201, ihigh: 300 }
+        - { clow: 351, chigh: 430, ilow: 301, ihigh: 400 }
+        - { clow: 431, chigh: 600, ilow: 401, ihigh: 500 }
+      NO2:
+        - { clow: 0,   chigh: 40,  ilow: 0,   ihigh: 50  }
+        - { clow: 41,  chigh: 80,  ilow: 51,  ihigh: 100 }
+        - { clow: 81,  chigh: 180, ilow: 101, ihigh: 200 }
+        - { clow: 181, chigh: 280, ilow: 201, ihigh: 300 }
+        - { clow: 281, chigh: 400, ilow: 301, ihigh: 400 }
+        - { clow: 401, chigh: 800, ilow: 401, ihigh: 500 }
