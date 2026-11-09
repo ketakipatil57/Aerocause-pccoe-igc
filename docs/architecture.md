@@ -17,10 +17,11 @@ AeroCause is a three-service monorepo. Each service has a single responsibility.
 - Flyway migrations for schema versioning
 
 ### AI Service (FastAPI / Python 3.11)
-- RAG: ChromaDB over `/corpus` document store
-- Narration: LLM-generated explanation of evidence (MOCK or LIVE mode)
-- Validator: ensures every claim references an evidence item id; every action references a document passage id
-- Fallback: template-based brief if LLM fails validation after retries
+- RAG: user-managed PDF/TXT/MD documents listed in `/corpus/manifest.json`, chunked with page/section references and indexed in persisted ChromaDB
+- Narration: deterministic MOCK provider by default or an OpenAI-compatible LIVE provider
+- Validator: checks evidence and passage references, package hypothesis order, unsupported numbers, unverified proper nouns, uncited actions, and action-to-passage overlap
+- Fallback: one validator-guided retry followed by a deterministic template brief
+- Citizen summaries use language templates and only caller-supplied precaution text
 
 ### Frontend (React / Vite / TypeScript)
 - Officer dashboard: incidents list, incident detail, review form

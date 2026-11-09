@@ -5,7 +5,7 @@
 
 ---
 
-## Status: PHASE 1 IN PROGRESS — BACKEND SERVICE LAYER COMPLETE
+## Status: PHASE 2 IN PROGRESS — AI SERVICE COMPLETE
 
 ---
 
@@ -16,12 +16,16 @@
 - Spring Boot ingestion, replay, QC, anomaly, fingerprinting, AQI, and evidence-package services
 - Flyway schema and seed data validated against the H2 test profile
 - Backend unit and integration test suites
+- FastAPI `/health`, `/investigate`, `/citizen-summary`, and `/retrieve` endpoints
+- Mock and OpenAI-compatible live LLM providers, brief validator, retry, and template fallback
+- User-managed manifest corpus with PDF/TXT/MD parsing, embeddings, persisted ChromaDB, and retrieval tests
+- AI service API, Docker, configuration, and test documentation
+- AI service verification: 24 tests pass and Ruff reports no findings
 
 ## 🔄 IN PROGRESS
-- Synthetic episode replay validation and end-to-end evaluation behavior
+- Frontend (React, Vite, TypeScript, Tailwind)
 
 ## ❌ NOT STARTED
-- AI service (FastAPI, ChromaDB, RAG, mock LLM)
 - Frontend (React, Vite, TypeScript, Tailwind)
 
 ---
@@ -50,10 +54,13 @@ curl -X POST http://localhost:8080/api/evaluation/run
 ## Known Bugs / Issues
 - Live OpenAQ/Open-Meteo polling remains intentionally disabled for the prototype; replay is the supported ingestion source.
 - `/api/evaluation/run` still returns guidance rather than running all episodes automatically.
+- No official documents are bundled in the AI corpus; citations appear only after the user supplies and indexes reviewed sources.
+- Proper-noun detection and action-to-passage grounding are heuristic and require human review.
+- AI service tests ran on the available Python 3.14 runtime, not the target Python 3.11; the Docker daemon was unavailable for an image build.
 
 ---
 
 ## Next 3 Tasks (in order)
-1. Generate synthetic data and verify expected outcomes for all five replays.
-2. Scaffold AI service: FastAPI, ChromaDB, mock LLM, validator.
-3. Scaffold frontend: React, Vite, TypeScript, Tailwind.
+1. Scaffold frontend: React, Vite, TypeScript, Tailwind.
+2. Verify all five synthetic replay outcomes against expected hypotheses.
+3. Perform end-to-end backend/AI/frontend integration.

@@ -13,7 +13,7 @@
 cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 # Terminal 2 — AI service (mock, no API key needed)
-cd ai-service && LLM_MODE=mock uvicorn main:app --reload --port 8000
+cd ai-service && python -m uvicorn ai_service.main:app --reload --port 8000
 
 # Terminal 3 — Frontend
 cd frontend && pnpm dev
@@ -57,10 +57,10 @@ curl -X POST http://localhost:8080/api/incidents/1/investigate
 ```
 
 - In the UI, show the generated brief:
-  - Every claim has an evidence item ID (`[EV-003]`)
-  - Every recommended action has a document citation (`[DOC-001 §3.2]`)
-  - Brief says "MOCK LLM" — no fake API calls
-  - Recommended next steps (verify upwind dust source, check road-sweeping logs)
+  - Evidence references point to evidence IDs computed by the backend
+  - Source citations and recommended actions appear only when relevant documents are added to the AI service corpus
+  - With the default empty corpus, the brief says no official source was found and does not invent citations
+  - Generic verification steps are not presented as official recommendations
 
 ---
 

@@ -76,7 +76,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```bash
 cd ai-service
 pip install -r requirements.txt
-LLM_MODE=mock uvicorn main:app --reload --port 8000
+python -m uvicorn ai_service.main:app --reload --port 8000
 ```
 
 ### 5. Start the frontend

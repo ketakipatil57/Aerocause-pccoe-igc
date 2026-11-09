@@ -41,8 +41,17 @@ services:
     ports:
       - "${AI_SERVICE_PORT:-8000}:8000"
     environment:
-      LLM_MODE: ${LLM_MODE:-mock}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1/chat/completions}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_API_URL: ${EMBEDDING_API_URL:-https://api.openai.com/v1/embeddings}
+      RETRIEVAL_MIN_SIMILARITY: ${RETRIEVAL_MIN_SIMILARITY:-0.25}
+      CORPUS_DIR: /app/corpus
+      CHROMA_PERSIST_DIR: /app/chromadb_data
     volumes:
       - ./ai-service/corpus:/app/corpus
       - chroma_data:/app/chromadb_data
