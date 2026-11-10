@@ -12,7 +12,6 @@
 [![React](https://img.shields.io/badge/React-Vite_TypeScript-61DAFB?logo=react)](./frontend)
 [![MySQL](https://img.shields.io/badge/Database-MySQL_8.0-4479A1?logo=mysql)](./backend)
 [![ChromaDB](https://img.shields.io/badge/Vector_DB-ChromaDB-FF6600)](./ai-service)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [The problem](#7-pm-the-pm25-line-jumps) · [What it does](#what-aerocause-does) · [Screens](#a-walk-through-the-app) · [How it works](#how-an-incident-travels) · [Source types](#how-it-decides-what-kind-of-source) · [Getting started](#getting-started) · [Limitations](#honest-limitations) · [Team](#the-team)
 
@@ -165,9 +164,18 @@ Every image below is a screenshot of the running app against the synthetic sampl
 
 ## How an incident travels
 
-```text
-[ Data (live/replay) ] ──> [ QC Check (Real/Fault) ] ──> [ Anomaly Detection ]
-                                                                  │
-[ Audit Trail ] <── [ Officer Review ] <── [ Officer Brief ] <───┴──> [ Fingerprinting ]
-                                                │                         │
-                                      [ Validator Check ] <────── [ Evidence Package ]
+```mermaid
+flowchart TD
+    D["Data (live / replay)"] --> Q["QC Check (real or fault?)"]
+    Q --> A["Anomaly Detection (baseline + z-score)"]
+    A --> I["Incident Opened"]
+    I --> F["Fingerprinting (rules over evidence)"]
+    F --> E["Evidence Package (JSON document)"]
+    E --> R["AI Service (retrieve guidance)"]
+    R --> L["LLM Narration (or mock mode)"]
+    L --> V{"Validator"}
+    V -- "passes" --> B["Officer Brief"]
+    V -- "fails twice" --> T["Template Brief"]
+    B --> O["Officer Review (accept / reject)"]
+    T --> O
+    O --> U["Audit Trail Log"]
