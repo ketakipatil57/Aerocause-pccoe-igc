@@ -166,41 +166,43 @@ Every image below is a screenshot of the running app against the synthetic sampl
 
 ```mermaid
 flowchart TD
-    D["Data (live / replay)"] --> Q["QC Check (real or fault?)"]
-    Q --> A["Anomaly Detection (baseline + z-score)"]
+    D["Data (Live / Replay)"] --> Q["QC Check"]
+    Q --> A["Anomaly Detection"]
     A --> I["Incident Opened"]
-    I --> F["Fingerprinting (rules over evidence)"]
-    F --> E["Evidence Package (JSON document)"]
-    E --> R["AI Service (retrieve guidance)"]
-    R --> L["LLM Narration (or mock mode)"]
+    I --> F["Fingerprinting"]
+    F --> E["Evidence Package"]
+    E --> R["AI Service - Retrieve Guidance"]
+    R --> L["LLM Narration"]
     L --> V{"Validator"}
-    V -- "passes" --> B["Officer Brief"]
-    V -- "fails twice" --> T["Template Brief"]
-    B --> O["Officer Review (accept / reject)"]
+    V -->|Passes| B["Officer Brief"]
+    V -->|Fails Twice| T["Template Brief"]
+    B --> O["Officer Review"]
     T --> O
     O --> U["Audit Trail Log"]
+```
 
 ### What happens when the model overreaches
- 
+
 ```mermaid
 sequenceDiagram
     participant BE as Backend
-    participant AI as AI service
+    participant AI as AI Service
     participant LLM as LLM
     participant VAL as Validator
+
     BE->>AI: POST /investigate (evidence package)
-    AI->>AI: retrieve passages from the corpus
-    AI->>LLM: evidence + passages + strict rules
-    LLM-->>AI: draft brief (JSON)
-    AI->>VAL: check refs, numbers, citations, hypotheses
-    VAL-->>AI: violation: number not in evidence
-    AI->>LLM: retry once with the violations listed
-    LLM-->>AI: second draft
-    AI->>VAL: check again
-    VAL-->>AI: passes (RETRIED) or fails (TEMPLATE_FALLBACK)
-    AI-->>BE: brief + validator status + model mode
+    AI->>AI: Retrieve passages from corpus
+    AI->>LLM: Evidence + passages + strict rules
+    LLM-->>AI: Draft brief (JSON)
+    AI->>VAL: Check refs, numbers, citations, hypotheses
+    VAL-->>AI: Violation - number not in evidence
+    AI->>LLM: Retry once with listed violations
+    LLM-->>AI: Second draft
+    AI->>VAL: Validate again
+    VAL-->>AI: Pass or fail
+    AI-->>BE: Brief + validator status + model mode
 ```
- 
+
 ### Architecture
  
 ```mermaid
