@@ -165,18 +165,9 @@ Every image below is a screenshot of the running app against the synthetic sampl
 
 ## How an incident travels
 
-```mermaid
-flowchart LR
-    D["Data<br/>live fetch or replay"] --> Q["QC<br/>real event or sensor fault?"]
-    Q --> A["Anomaly detection<br/>baseline + robust z-score"]
-    A --> I["Incident opened"]
-    I --> F["Fingerprinting<br/>rules over evidence"]
-    F --> E["Evidence package<br/>one JSON document"]
-    E --> R["AI service<br/>retrieve guidance"]
-    R --> L["Narrate<br/>LLM or mock mode"]
-    L --> V{"Validator"}
-    V -- "passes" --> B["Officer brief"]
-    V -- "fails twice" --> T["Template brief<br/>built from code"]
-    B --> O["Officer review<br/>accept / reject / more evidence"]
-    T --> O
-    O --> U["Audit trail"]
+```text
+[ Data (live/replay) ] ──> [ QC Check (Real/Fault) ] ──> [ Anomaly Detection ]
+                                                                  │
+[ Audit Trail ] <── [ Officer Review ] <── [ Officer Brief ] <───┴──> [ Fingerprinting ]
+                                                │                         │
+                                      [ Validator Check ] <────── [ Evidence Package ]
