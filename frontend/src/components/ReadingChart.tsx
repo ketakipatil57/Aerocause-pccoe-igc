@@ -21,8 +21,8 @@ export default function ReadingChart({ readings, incident, neighbors }: ReadingC
           <linearGradient id="readingFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#0d7770" stopOpacity={0.19} /><stop offset="100%" stopColor="#0d7770" stopOpacity={0.015} /></linearGradient>
         </defs>
         <CartesianGrid stroke="var(--chart-grid)" vertical={false} strokeDasharray="3 5" />
-        <XAxis dataKey="time" tickLine={false} axisLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} minTickGap={45} />
-        <YAxis tickLine={false} axisLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} width={45} />
+        <XAxis dataKey="time" tickLine={false} axisLine={false} tick={{ fill: 'var(--muted)', fontSize: 14 }} minTickGap={45} />
+        <YAxis tickLine={false} axisLine={false} tick={{ fill: 'var(--muted)', fontSize: 14 }} width={45} />
         <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)' }} formatter={(value, name) => [`${Number(value).toFixed(1)} µg/m³`, name === 'value' ? 'Observed' : String(name)]} />
         <ReferenceArea y1={incident.baselineValue * 0.82} y2={incident.baselineValue * 1.18} fill="#0d7770" fillOpacity={0.075} />
         <ReferenceArea x1={data[13]?.time} x2={data[21]?.time} fill="#e9a23b" fillOpacity={0.1} />

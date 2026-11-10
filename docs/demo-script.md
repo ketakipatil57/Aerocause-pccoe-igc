@@ -1,128 +1,66 @@
-# AeroCause Demo Script
+# AeroCause: 3-minute demo walkthrough
 
-**Audience:** PCCOE-IGC 2026 judges  
-**Duration:** ~10 minutes  
-**Setup:** Backend + AI service (mock mode) running locally. Browser open to http://localhost:5173
+## Before the walkthrough
 
----
+From the repository root, run `docker compose up --build` and wait for the services to become healthy. Open `http://localhost:5173` in a browser. Use the default MOCK provider and empty official-document corpus. No API key is required.
 
-## Setup (before demo)
+## Walkthrough (exact clicks and narration)
 
-```bash
-# Terminal 1 — Backend
-cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=dev
+### 0:00–0:25 — Show the clean start
 
-# Terminal 2 — AI service (mock, no API key needed)
-cd ai-service && python -m uvicorn ai_service.main:app --reload --port 8000
+1. Open **Incidents**.
+2. Point to **Start sample replay**, **SAMPLE DATA (synthetic)**, and the decision-support notice.
 
-# Terminal 3 — Frontend
-cd frontend && pnpm dev
+Say: “This is a clean, synthetic demo environment. It helps organize evidence for review; it does not identify a polluter or make an enforcement decision.”
 
-# Terminal 4 — Import episodes
-curl -X POST http://localhost:8080/api/replay/import-all
+### 0:25–1:10 — Replay and inspect an incident
+
+1. Click **Start sample replay**.
+2. On **Episode replay**, confirm **Dust Storm Event** is selected and click **Start replay**.
+3. Wait for incidents to appear under **Recent incidents**, then click the incident row.
+4. Click **Hypotheses**, then **Evidence & QC**.
+
+Say: “The deterministic pipeline records readings, QC flags, ranked source-type hypotheses, and evidence that is for, against, or missing. These are screening heuristics, not validated scientific conclusions.”
+
+### 1:10–1:45 — Generate and review the brief
+
+1. Click **Officer brief**.
+2. Click **Generate brief** if no brief exists.
+3. Point out the **MOCK** badge, validator status, verification steps, and the no-official-source notice.
+4. In the fixed review bar, keep **Needs more evidence**, enter a reviewer name, then click **Save review**.
+5. Click **Timeline / Audit** to show the review event.
+
+Say: “The model is in deterministic mock mode. The corpus is empty by default, so no official citation is claimed. The audit timeline records the review.”
+
+### 1:45–2:20 — Run the guided demo sequence
+
+1. Return to **Replay**.
+2. Click **Run demo mode**.
+3. Point out the status/progress while the app runs dust → sensor fault → ambiguous/INCONCLUSIVE.
+
+Say: “Demo mode runs the recommended synthetic order. A sensor-fault flag is a quality-control signal, not proof of a physical cause. Ambiguous evidence should remain inconclusive.”
+
+### 2:20–2:45 — Run evaluation
+
+1. Click **Evaluation**.
+2. Click **Run evaluation** and wait for the result.
+3. Point out separate synthetic and real episode sections, first-attempt validator violations, final unsupported claims, citation validity, and time to brief.
+
+Say: “This is a repeatable pipeline test. The synthetic expected labels are test metadata, not an accuracy claim. Real episodes are unlabelled unless a human supplies reference labels. Any final validator violation fails the build gate.”
+
+### 2:45–3:00 — Citizen view and limits
+
+1. Click **Citizen View**.
+2. Point out the AQI disclaimer, hedged summary, language selector, and explicit precaution placeholder.
+
+Say: “Public-facing health text is still a placeholder and must be replaced with reviewed official guidance. Translations also need native-speaker review.”
+
+## Optional command-line evaluation
+
+From a second terminal at the repository root:
+
+```powershell
+py backend/scripts/run_evaluation.py
 ```
 
----
-
-## Step 1: Show the Dashboard (1 min)
-
-- Open http://localhost:5173
-- Point out: **"SAMPLE DATA (synthetic)"** badge — data is not real
-- Point out: **"Decision support only"** notice
-- Show the 4 monitoring stations on the map (Vayu Nagar, imaginary city)
-
----
-
-## Step 2: Replay the Dust Episode (2 min)
-
-```bash
-curl -X POST http://localhost:8080/api/replay/start \
-  -d '{"episodeId":1,"speedMultiplier":120}'
-```
-
-- In the UI, watch the incident appear as readings are processed
-- Click the incident — show evidence tab:
-  - PM10 >> PM2.5 (ratio evidence)
-  - High wind speed
-  - No NO2/CO elevation
-  - Evidence FOR dust, Evidence AGAINST combustion
-- Top hypothesis: **DUST — HIGH confidence**
-
----
-
-## Step 3: Generate AI Brief (2 min)
-
-```bash
-curl -X POST http://localhost:8080/api/incidents/1/investigate
-```
-
-- In the UI, show the generated brief:
-  - Evidence references point to evidence IDs computed by the backend
-  - Source citations and recommended actions appear only when relevant documents are added to the AI service corpus
-  - With the default empty corpus, the brief says no official source was found and does not invent citations
-  - Generic verification steps are not presented as official recommendations
-
----
-
-## Step 4: Officer Review (1 min)
-
-- Click **Review** tab → Select "Accept" → Enter name → Submit
-- Show audit trail: every action recorded with timestamp
-
----
-
-## Step 5: Sensor Fault Episode (1 min)
-
-```bash
-curl -X POST http://localhost:8080/api/replay/start \
-  -d '{"episodeId":4,"speedMultiplier":120}'
-```
-
-- One station spikes; neighbours stay normal
-- QC flag: ISOLATED_SPIKE
-- Top hypothesis: **SENSOR_FAULT — HIGH confidence**
-- Brief recommends: "Inspect sensor hardware, do not issue public advisory"
-
----
-
-## Step 6: Ambiguous / INCONCLUSIVE Episode (1 min)
-
-```bash
-curl -X POST http://localhost:8080/api/replay/start \
-  -d '{"episodeId":5,"speedMultiplier":120}'
-```
-
-- Evidence conflicts (some PM2.5, some NO2, weak wind signal)
-- Top hypothesis: **INCONCLUSIVE**
-- Missing evidence list: ["fire hotspot data not available", "only 1 upwind station"]
-- Brief: "Insufficient evidence to determine source type. Recommended: deploy mobile monitor, request satellite data."
-
----
-
-## Step 7: Citizen View (1 min)
-
-```bash
-open http://localhost:5173/citizen
-```
-
-- Shows AQI category and plain-language advice
-- **Never** mentions specific factories, companies, or people
-- Disclaimer: "This is not an official government reading."
-
----
-
-## Step 8: Evaluation Page (1 min)
-
-- Open http://localhost:5173/evaluation
-- Shows all 5 episodes: expected vs actual hypothesis
-- 4/5 pass (INCONCLUSIVE counts as pass for the ambiguous episode)
-
----
-
-## Key Points to Emphasise
-
-1. **LLM explains; code decides** — no hallucinated thresholds
-2. **INCONCLUSIVE is a valid answer** — honest about uncertainty
-3. **Full audit trail** — every decision traceable
-4. **Mock mode** — full demo with zero API keys
-5. **No specific entities named** — only source types
+It replays every configured episode, stores the latest run, writes CSV/Markdown reports under `docs/`, and exits nonzero if the final-brief gate fails.

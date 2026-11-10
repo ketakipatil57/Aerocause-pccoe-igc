@@ -49,7 +49,7 @@ Query readings for a station.
 ## Episodes
 
 ### GET /api/episodes
-List all episodes.
+List all episodes. Real episodes have `synthetic: false`, `expectedTopHypothesis: null`, and `expectedFault: null` unless a human supplied labels.
 
 ### GET /api/episodes/{id}
 Get episode detail including expected outcomes.
@@ -72,14 +72,18 @@ Feeds synthetic episode through the same pipeline as live data.
   "episodeId": 1,
   "progress": 0.42,
   "readingsProcessed": 84,
-  "incidentsCreated": 1
+  "incidentsCreated": 1,
+  "error": null
 }
 ```
 
 ### POST /api/replay/stop
 
 ### POST /api/replay/import-all
-Imports all episode CSVs from /data/episodes/ into the database.
+Returns the pre-seeded synthetic episode catalogue.
+
+### POST /api/episodes/import-real
+Imports entries in `data/real/manifest.json`. Every imported episode is forced to `synthetic: false`; omitted expected labels remain null. File paths are restricted to `data/real/`.
 
 ---
 
@@ -134,6 +138,24 @@ Calls the AI service to generate a brief. No body required.
 ### GET /api/incidents/{id}/audit
 Returns all audit_events for this incident.
 
+## Evaluation
+
+### POST /api/evaluation/run
+Replays every configured synthetic and real episode sequentially, generates a brief for the latest incident in each episode, computes evaluation metrics, stores the result in `evaluation_runs`, and exports `docs/evaluation-results.csv` and `docs/evaluation-results.md`.
+
+The response contains `episodes`, plus `syntheticEpisodes` and `realEpisodes` views, summary counts, `buildPass`, `unsupportedClaimsFinalTotal`, validator availability, and citation validity. Per-episode metrics include expected/actual top hypothesis, sensor-fault flag, first-attempt validator-violation count, final validator violations (reported as unsupported claims), citation validity, and milliseconds from incident creation to brief generation. Expected labels for unlabelled real episodes remain empty and are excluded from expected-vs-actual scoring.
+
+HTTP `200` means the evaluation build gate passed. HTTP `422` means the run was stored/exported but the final brief gate failed (unsupported/final validator violations, missing validator output, or invalid citation reference). HTTP `409` means an existing replay is running or an episode replay could not start.
+
+### GET /api/evaluation/latest
+Returns the most recently persisted run, or empty episode lists before the first run.
+
+Run the same gate from the repository root with `py backend/scripts/run_evaluation.py`; the CLI exits nonzero when the build gate fails.
+
+## AI service response metadata
+
+`POST /investigate` returns `validator_status`, `llm_mode`, `first_attempt_violations`, `final_violations`, `violations`, and `retrieved_passages`. `violations` preserves issues encountered in failed attempts/fallback; `final_violations` describes the final brief and is the evaluation build-gate basis.
+
 ---
 
 ## Health & Freshness
@@ -141,9 +163,16 @@ Returns all audit_events for this incident.
 ### GET /api/health/sources
 ```json
 {
-  "openaq": { "lastFetch": "2024-01-15T08:00:00Z", "stale": false, "staleSince": null },
-  "openMeteo": { "lastFetch": "2024-01-15T08:00:00Z", "stale": false },
-  "firms": { "enabled": false }
+  "openaq": { "enabled": false, "note": "Live polling disabled; use replay" },
+  "openMeteo": { "enabled": false, "note": "Live polling disabled; use replay" },
+  "firms": { "enabled": false },
+  "aiService": {
+    "stale": false,
+    "lastSuccessAt": null,
+    "lastFailure": null
+  },
+  "replay": { "running": false, "episodeId": "none" },
+  "dataNotice": "SAMPLE DATA (synthetic) — no live sources connected"
 }
 ```
 
@@ -170,22 +199,3 @@ Safe, plain-language AQI summary. Never names specific polluters.
 ---
 
 ## Evaluation
-
-### POST /api/evaluation/run
-Triggers replay of all episodes and compares expected vs actual top hypothesis.
-
-### GET /api/evaluation/latest
-```json
-{
-  "runAt": "2024-01-15T09:00:00Z",
-  "episodes": [{
-    "episodeId": 1,
-    "name": "Dust Event",
-    "expected": "DUST",
-    "actual": "DUST",
-    "pass": true,
-    "confidence": "HIGH"
-  }],
-  "summary": { "total": 5, "pass": 4, "fail": 1 }
-}
-```

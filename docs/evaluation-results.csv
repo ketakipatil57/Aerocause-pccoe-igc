@@ -1,0 +1,6 @@
+episode_id,name,data_type,expected,actual,fault_expected,fault_flagged,first_attempt_validator_violations,final_unsupported_claims,citations_valid,time_to_brief_ms,build_pass
+"1","Dust Storm Event","synthetic","DUST","INCONCLUSIVE","false","false","0","0","true","209","true"
+"2","Combustion / Traffic Event","synthetic","COMBUSTION_TRAFFIC","COMBUSTION_TRAFFIC","false","false","1","1","true","250","false"
+"3","Biomass Burning Event","synthetic","BIOMASS_BURNING","INCONCLUSIVE","false","false","0","0","true","65","true"
+"4","Sensor Fault (STN-001)","synthetic","SENSOR_FAULT","SENSOR_FAULT","true","true","1","1","true","701","false"
+"5","Ambiguous Episode (INCONCLUSIVE)","synthetic","INCONCLUSIVE","INCONCLUSIVE","false","false","0","0","true","337","true"

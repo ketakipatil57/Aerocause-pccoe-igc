@@ -23,6 +23,7 @@ class InvestigationService:
     def investigate(self, evidence_package: dict) -> InvestigationResponse:
         passages = self.retrieval.retrieve(_build_query(evidence_package))
         violations: list[str] = []
+        first_attempt_violations: list[str] = []
         for attempt in range(2):
             try:
                 brief = self.provider.generate(
@@ -35,12 +36,16 @@ class InvestigationService:
                 violations = self.validator.validate(brief, evidence_package, passages)
             except (httpx.HTTPError, ValueError, ValidationError, KeyError) as exc:
                 violations = [f"brief_generation_or_schema_error: {type(exc).__name__}: {exc}"]
+            if attempt == 0:
+                first_attempt_violations = violations.copy()
             if not violations:
                 return InvestigationResponse(
                     brief=brief,
                     validator_status="PASSED" if attempt == 0 else "RETRIED",
                     llm_mode=self.provider.mode,
                     violations=[],
+                    first_attempt_violations=first_attempt_violations,
+                    final_violations=[],
                     retrieved_passages=[PassageResponse(**item.as_response()) for item in passages],
                 )
         fallback = self._template_fallback(evidence_package, passages)
@@ -51,7 +56,9 @@ class InvestigationService:
             brief=fallback,
             validator_status="TEMPLATE_FALLBACK",
             llm_mode=self.provider.mode,
-            violations=violations,
+            violations=list(dict.fromkeys(violations + fallback_violations)),
+            first_attempt_violations=first_attempt_violations,
+            final_violations=fallback_violations,
             retrieved_passages=[PassageResponse(**item.as_response()) for item in passages],
         )
 

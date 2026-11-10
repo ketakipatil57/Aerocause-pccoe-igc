@@ -3,6 +3,7 @@ package com.aerocause.controller;
 import com.aerocause.domain.*;
 import com.aerocause.repository.*;
 import com.aerocause.service.*;
+import com.aerocause.service.EpisodeImportService;
 import com.aerocause.service.replay.ReplayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +35,7 @@ public class ApiController {
     private final AiServiceClient aiClient;
     private final ReplayService replayService;
     private final AqiService aqiService;
+    private final EpisodeImportService episodeImportService;
 
     public ApiController(StationRepository stationRepo,
                          ReadingRepository readingRepo,
@@ -48,7 +50,8 @@ public class ApiController {
                          AuditService auditService,
                          AiServiceClient aiClient,
                          ReplayService replayService,
-                         AqiService aqiService) {
+                         AqiService aqiService,
+                         EpisodeImportService episodeImportService) {
         this.stationRepo = stationRepo;
         this.readingRepo = readingRepo;
         this.episodeRepo = episodeRepo;
@@ -63,6 +66,7 @@ public class ApiController {
         this.aiClient = aiClient;
         this.replayService = replayService;
         this.aqiService = aqiService;
+        this.episodeImportService = episodeImportService;
     }
 
     // =========================================================================
@@ -100,14 +104,14 @@ public class ApiController {
     @GetMapping("/episodes")
     @Operation(summary = "List all episodes")
     public List<Episode> getEpisodes() {
-        return episodeRepo.findAll();
+        return episodeRepo.findAll().stream().map(this::toEpisodeView).toList();
     }
 
     @GetMapping("/episodes/{id}")
     @Operation(summary = "Get episode by ID")
     public ResponseEntity<Episode> getEpisode(@PathVariable Long id) {
         return episodeRepo.findById(id)
-                .map(ResponseEntity::ok)
+                .map(episode -> ResponseEntity.ok(toEpisodeView(episode)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -141,8 +145,6 @@ public class ApiController {
     @PostMapping("/replay/import-all")
     @Operation(summary = "Import all episode CSVs from /data/episodes/ into database")
     public ResponseEntity<?> importAll() {
-        // Episodes are seeded via Flyway V5; this endpoint triggers bulk episode loading
-        // from the metadata JSON. For prototype, episodes are pre-seeded.
         List<Episode> episodes = episodeRepo.findAll();
         return ResponseEntity.ok(Map.of(
                 "message", "Episodes available: " + episodes.size(),
@@ -150,6 +152,32 @@ public class ApiController {
                         "id", e.getId(), "name", e.getName()
                 )).toList()
         ));
+    }
+
+    @PostMapping("/episodes/import-real")
+    @Operation(summary = "Import real CSV episodes listed in data/real/manifest.json")
+    public ResponseEntity<?> importRealEpisodes() {
+        return ResponseEntity.ok(Map.of(
+                "message", "Real episodes imported without synthetic labels.",
+                "episodes", episodeImportService.importRealEpisodes()
+        ));
+    }
+
+    private Episode toEpisodeView(Episode episode) {
+        if (Boolean.TRUE.equals(episode.getSynthetic())) return episode;
+        Episode view = Episode.builder()
+                .id(episode.getId())
+                .name(episode.getName())
+                .description(episode.getDescription())
+                .synthetic(false)
+                .expectedTopHypothesis(null)
+                .expectedFault(null)
+                .durationHours(episode.getDurationHours())
+                .startTime(episode.getStartTime())
+                .readingsFile(episode.getReadingsFile())
+                .weatherFile(episode.getWeatherFile())
+                .build();
+        return view;
     }
 
     // =========================================================================
@@ -375,6 +403,7 @@ public class ApiController {
                 "openaq",    Map.of("enabled", false, "note", "Live polling disabled; use replay"),
                 "openMeteo", Map.of("enabled", false, "note", "Live polling disabled; use replay"),
                 "firms",     Map.of("enabled", false, "note", "Fire hotspot provider disabled by default"),
+                "aiService", aiClient.providerStatus(),
                 "replay",    Map.of("running", replayService.getStatus().running(),
                         "episodeId", replayService.getStatus().episodeId() != null
                                 ? replayService.getStatus().episodeId() : "none"),

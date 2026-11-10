@@ -6,8 +6,8 @@
     "currentReading": "CURRENT READING",
     "whyHigh": "Why might it be high today?",
     "uncertainCause": "Carefully worded; not a confirmed cause",
-    "precautions": "Precautions",
-    "precautionPlaceholder": "Category-based template placeholder",
+    "precautions": "Health impacts",
+    "healthImpactSource": "CPCB AQI category descriptions",
     "report": "How to report pollution",
     "officialPortal": "Open official portal",
     "needsReview": "Needs native-speaker review"
@@ -17,8 +17,8 @@
     "currentReading": "वर्तमान माप",
     "whyHigh": "आज यह अधिक क्यों हो सकता है?",
     "uncertainCause": "सावधानी से लिखा गया; पुष्टि किया हुआ कारण नहीं",
-    "precautions": "सावधानियां",
-    "precautionPlaceholder": "श्रेणी-आधारित टेम्पलेट प्लेसहोल्डर",
+    "precautions": "स्वास्थ्य प्रभाव",
+    "healthImpactSource": "CPCB AQI श्रेणी विवरण",
     "report": "प्रदूषण की रिपोर्ट कैसे करें",
     "officialPortal": "आधिकारिक पोर्टल खोलें",
     "needsReview": "मूल भाषा के वक्ता द्वारा समीक्षा आवश्यक"
@@ -28,8 +28,8 @@
     "currentReading": "सध्याचे मोजमाप",
     "whyHigh": "आज हे जास्त का असू शकते?",
     "uncertainCause": "काळजीपूर्वक मांडलेले; निश्चित कारण नाही",
-    "precautions": "खबरदारी",
-    "precautionPlaceholder": "श्रेणी-आधारित टेम्पलेट प्लेसहोल्डर",
+    "precautions": "आरोग्यावरील परिणाम",
+    "healthImpactSource": "CPCB AQI श्रेणी वर्णन",
     "report": "प्रदूषणाची तक्रार कशी करावी",
     "officialPortal": "अधिकृत पोर्टल उघडा",
     "needsReview": "मूळ भाषिकाकडून पुनरावलोकन आवश्यक"

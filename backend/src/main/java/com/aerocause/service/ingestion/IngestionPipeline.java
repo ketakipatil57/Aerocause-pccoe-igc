@@ -121,7 +121,8 @@ public class IngestionPipeline {
 
         // 4. Group by pollutant and run QC + anomaly per pollutant
         Map<String, List<Reading>> byPollutant = persisted.stream()
-                .collect(Collectors.groupingBy(Reading::getPollutant));
+                .collect(Collectors.groupingBy(
+                        Reading::getPollutant, TreeMap::new, Collectors.toList()));
 
         int incidentsCreated = 0;
         Instant latestObservedAt = persisted.stream()

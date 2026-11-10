@@ -9,7 +9,7 @@ services:
       MYSQL_USER: ${MYSQL_USER:-aerocause}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -32,6 +32,11 @@ services:
       FIRE_HOTSPOT_ENABLED: ${FIRE_HOTSPOT_ENABLED:-false}
       INGESTION_POLLING_ENABLED: ${INGESTION_POLLING_ENABLED:-false}
       AI_SERVICE_URL: http://ai-service:8000
+      AEROCAUSE_DATA_DIR: /app/data
+      EVALUATION_EXPORT_DIR: /app/docs
+    volumes:
+      - ./data:/app/data
+      - ./docs:/app/docs
     depends_on:
       mysql:
         condition: service_healthy

@@ -1,0 +1,122 @@
+{
+  "data_notice": "SAMPLE DATA (synthetic) \u2014 All values are artificially generated for demonstration purposes. Not based on real monitoring data.",
+  "city": "Vayu Nagar (imaginary)",
+  "stations": [
+    {
+      "id": "STN-001",
+      "name": "Central Monitor",
+      "lat": 18.5204,
+      "lon": 73.8567
+    },
+    {
+      "id": "STN-002",
+      "name": "North Station",
+      "lat": 18.55,
+      "lon": 73.84
+    },
+    {
+      "id": "STN-003",
+      "name": "East Station",
+      "lat": 18.51,
+      "lon": 73.9
+    },
+    {
+      "id": "STN-004",
+      "name": "South Station",
+      "lat": 18.49,
+      "lon": 73.86
+    }
+  ],
+  "episodes": [
+    {
+      "id": 1,
+      "name": "Dust Storm Event",
+      "description": "Synthetic dust-like event: PM10 strongly elevated relative to PM2.5 (ratio ~0.29), high NW wind across all 4 stations. No significant NO2/CO elevation. SAMPLE DATA (synthetic) \u2014 not based on real incident.",
+      "synthetic": true,
+      "expected_top_hypothesis": "DUST",
+      "expected_fault": false,
+      "stations": [
+        "STN-001",
+        "STN-002",
+        "STN-003",
+        "STN-004"
+      ],
+      "duration_hours": 6,
+      "start_time": "2024-03-15T00:00:00Z",
+      "readings_file": "episodes/episode_01_dust/readings.csv",
+      "weather_file": "episodes/episode_01_dust/weather.csv"
+    },
+    {
+      "id": 2,
+      "name": "Combustion / Traffic Event",
+      "description": "Synthetic combustion-like event: PM2.5/PM10 ratio ~0.73 at affected stations, NO2 and CO elevated, low wind speed, low BLH. Central and south stations more affected than north/east. SAMPLE DATA (synthetic).",
+      "synthetic": true,
+      "expected_top_hypothesis": "COMBUSTION_TRAFFIC",
+      "expected_fault": false,
+      "stations": [
+        "STN-001",
+        "STN-002",
+        "STN-003",
+        "STN-004"
+      ],
+      "duration_hours": 6,
+      "start_time": "2024-02-20T14:00:00Z",
+      "readings_file": "episodes/episode_02_combustion/readings.csv",
+      "weather_file": "episodes/episode_02_combustion/weather.csv"
+    },
+    {
+      "id": 3,
+      "name": "Biomass Burning Event",
+      "description": "Synthetic biomass-burning-like event: elevated PM2.5 across all stations, fire hotspot flag set for upwind direction (NE), moderate wind. Post-harvest season timing. SAMPLE DATA (synthetic).",
+      "synthetic": true,
+      "expected_top_hypothesis": "BIOMASS_BURNING",
+      "expected_fault": false,
+      "stations": [
+        "STN-001",
+        "STN-002",
+        "STN-003",
+        "STN-004"
+      ],
+      "duration_hours": 6,
+      "start_time": "2024-10-25T02:00:00Z",
+      "readings_file": "episodes/episode_03_biomass/readings.csv",
+      "weather_file": "episodes/episode_03_biomass/weather.csv"
+    },
+    {
+      "id": 4,
+      "name": "Sensor Fault (STN-001)",
+      "description": "Synthetic sensor fault: STN-001 flatlines for 6 hours, then shows an extreme spike (PM2.5=998), then drops to zero. Neighbouring stations remain at normal background levels. QC rules: FLATLINE + ISOLATED_SPIKE + OUT_OF_RANGE. SAMPLE DATA (synthetic).",
+      "synthetic": true,
+      "expected_top_hypothesis": "SENSOR_FAULT",
+      "expected_fault": true,
+      "stations": [
+        "STN-001",
+        "STN-002",
+        "STN-003",
+        "STN-004"
+      ],
+      "duration_hours": 8,
+      "start_time": "2024-05-10T06:00:00Z",
+      "readings_file": "episodes/episode_04_sensor_fault/readings.csv",
+      "weather_file": "episodes/episode_04_sensor_fault/weather.csv"
+    },
+    {
+      "id": 5,
+      "name": "Ambiguous Episode (INCONCLUSIVE)",
+      "description": "Synthetic ambiguous episode: moderate PM2.5+PM10, slightly elevated NO2 and SO2, low wind speed, only 2 of 4 stations affected. No fire hotspot data. Evidence conflicts between COMBUSTION_TRAFFIC, STAGNANT_WEATHER, and INDUSTRIAL. Margin between top two hypotheses is small -> expected INCONCLUSIVE. SAMPLE DATA (synthetic).",
+      "synthetic": true,
+      "expected_top_hypothesis": "INCONCLUSIVE",
+      "expected_fault": false,
+      "stations": [
+        "STN-001",
+        "STN-002",
+        "STN-003",
+        "STN-004"
+      ],
+      "duration_hours": 6,
+      "start_time": "2024-07-08T10:00:00Z",
+      "readings_file": "episodes/episode_05_inconclusive/readings.csv",
+      "weather_file": "episodes/episode_05_inconclusive/weather.csv"
+    }
+  ]
+}

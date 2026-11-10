@@ -1,5 +1,7 @@
 package com.aerocause.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
@@ -8,11 +10,13 @@ import java.time.Instant;
 @Table(name = "readings",
        uniqueConstraints = @UniqueConstraint(
            columnNames = {"station_id", "pollutant", "observed_at"}))
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Reading {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "station_id", nullable = false)
     private Station station;
@@ -20,7 +24,7 @@ public class Reading {
     @Column(nullable = false, length = 20)
     private String pollutant;
 
-    @Column(nullable = false)
+    @Column(name = "reading_value", nullable = false)
     private Double value;
 
     @Column(nullable = false, length = 20)

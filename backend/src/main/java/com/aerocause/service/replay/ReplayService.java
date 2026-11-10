@@ -48,6 +48,7 @@ public class ReplayService {
     private final AtomicInteger incidentsCreated  = new AtomicInteger(0);
     private volatile double progress = 0.0;
     private volatile Thread replayThread = null;
+    private volatile String lastError = null;
 
     public ReplayService(EpisodeRepository episodeRepo,
                          StationRepository stationRepo,
@@ -67,7 +68,8 @@ public class ReplayService {
             double progress,
             int readingsProcessed,
             int incidentsCreated,
-            String message
+            String message,
+            String error
     ) {}
 
     public ReplayStatus getStatus() {
@@ -75,7 +77,8 @@ public class ReplayService {
                 running.get(), currentEpisodeId, progress,
                 readingsProcessed.get(),
                 incidentsCreated.get(),
-                running.get() ? "Replay in progress" : "No replay running"
+                running.get() ? "Replay in progress" : "No replay running",
+                lastError
         );
     }
 
@@ -93,7 +96,7 @@ public class ReplayService {
         if (!running.compareAndSet(false, true)) {
             return new ReplayStatus(true, currentEpisodeId, progress,
                     readingsProcessed.get(), incidentsCreated.get(),
-                    "Replay already running. Stop it first.");
+                    "Replay already running. Stop it first.", lastError);
         }
 
         Episode episode;
@@ -109,6 +112,7 @@ public class ReplayService {
         readingsProcessed.set(0);
         incidentsCreated.set(0);
         progress = 0.0;
+        lastError = null;
 
         try {
             saveAudit("REPLAY_STARTED", Map.of(
@@ -154,11 +158,15 @@ public class ReplayService {
 
             // Group readings by station
             Map<String, List<Map<String, String>>> byStation = readingRows.stream()
-                    .collect(Collectors.groupingBy(r -> r.getOrDefault("station_external_id", "")));
+                    .collect(Collectors.groupingBy(
+                            r -> r.getOrDefault("station_external_id", ""),
+                            TreeMap::new, Collectors.toList()));
 
             // Group weather by station
             Map<String, List<Map<String, String>>> weatherByStation = weatherRows.stream()
-                    .collect(Collectors.groupingBy(r -> r.getOrDefault("station_external_id", "")));
+                    .collect(Collectors.groupingBy(
+                            r -> r.getOrDefault("station_external_id", ""),
+                            TreeMap::new, Collectors.toList()));
 
             // Collect all unique timestamps across all stations (sorted)
             List<Instant> allTimestamps = readingRows.stream()
@@ -233,7 +241,9 @@ public class ReplayService {
                 progress = (double) (i + 1) / total;
 
                 // Simulate time compression
-                if (speed > 0 && i < allTimestamps.size() - 1) {
+                boolean warmup = episode.getStartTime() != null
+                        && ts.isBefore(episode.getStartTime());
+                if (!warmup && speed > 0 && i < allTimestamps.size() - 1) {
                     Instant next = allTimestamps.get(i + 1);
                     long realGapMs = (next.toEpochMilli() - ts.toEpochMilli()) / speed;
                     if (realGapMs > 50) {
@@ -255,9 +265,10 @@ public class ReplayService {
 
         } catch (Exception e) {
             log.error("Replay failed for episode {}", currentEpisodeId, e);
+            lastError = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             Map<String, Object> failure = new LinkedHashMap<>();
             failure.put("episodeId", currentEpisodeId);
-            failure.put("error", e.getMessage());
+            failure.put("error", lastError);
             try {
                 saveAudit("REPLAY_FAILED", failure);
             } catch (RuntimeException auditError) {
@@ -318,14 +329,14 @@ public class ReplayService {
         try {
             String blhStr = row.getOrDefault("boundary_layer_height", "").trim();
             Double blh = blhStr.isBlank() ? null : Double.parseDouble(blhStr);
-            String hotspot = row.getOrDefault("fire_hotspot_upwind", "false").trim();
+            String hotspot = row.getOrDefault("fire_hotspot_upwind", "").trim();
             return WeatherObs.builder()
                     .station(station)
                     .observedAt(Instant.parse(row.get("observed_at")))
                     .windSpeed(parseDouble(row.get("wind_speed")))
                     .windDirDeg(parseDouble(row.get("wind_dir_deg")))
                     .boundaryLayerHeight(blh)
-                    .fireHotspotUpwind(Boolean.parseBoolean(hotspot))
+                    .fireHotspotUpwind(hotspot.isBlank() ? null : Boolean.parseBoolean(hotspot))
                     .source(row.getOrDefault("source", "SYNTHETIC"))
                     .build();
         } catch (Exception e) {

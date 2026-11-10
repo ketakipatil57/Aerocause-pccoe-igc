@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from ai_service.citizen import build_citizen_summary
 from ai_service.config import Settings
@@ -32,6 +33,16 @@ def create_app(
         version="1.0.0",
         description="Evidence-grounded air quality narration and official document retrieval.",
     )
+
+    # Enable CORS for local dev & Vite frontend
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     application.state.settings = config
     application.state.retrieval = rag
     application.state.investigation = investigation

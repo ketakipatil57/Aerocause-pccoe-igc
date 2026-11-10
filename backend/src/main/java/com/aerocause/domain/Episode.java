@@ -1,11 +1,13 @@
 package com.aerocause.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
 
 @Entity
 @Table(name = "episodes")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Episode {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,7 +26,7 @@ public class Episode {
     @Column(name = "expected_top_hypothesis", length = 50)
     private String expectedTopHypothesis;
 
-    @Column(name = "expected_fault", nullable = false)
+    @Column(name = "expected_fault")
     @Builder.Default
     private Boolean expectedFault = false;
 

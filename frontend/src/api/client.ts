@@ -19,6 +19,16 @@ const apiBase = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
 const aiBase = (import.meta.env.VITE_AI_API_BASE_URL || '/ai').replace(/\/$/, '')
 const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_MS || 5000)
 
+export class ApiRequestError extends Error {
+  readonly status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+    this.name = 'ApiRequestError'
+  }
+}
+
 async function request<T>(
   base: string,
   path: string,
@@ -41,7 +51,7 @@ async function request<T>(
   if (!response.ok) {
     if ([502, 503, 504].includes(response.status)) return { data: fallback(), source: 'MOCK' }
     const body = await response.text()
-    throw new Error(`Request failed (${response.status}): ${body || response.statusText}`)
+    throw new ApiRequestError(response.status, `Request failed (${response.status}): ${body || response.statusText}`)
   }
   const body = await response.text()
   if (!body) return { data: fallback(), source: 'LIVE' }
@@ -85,9 +95,14 @@ export const api = {
     { episodeId, speedMultiplier },
     () => mock.startMockReplay(episodeId),
   ),
+  importRealEpisodes: () => post<{ message: string; episodes: Array<{ id: number; name: string; synthetic: boolean }> }>(
+    '/episodes/import-real',
+    {},
+    () => ({ message: 'No local real-data import is available in sample mode.', episodes: [] }),
+  ),
   stopReplay: () => post<ReplayStatus>('/replay/stop', {}, mock.stopMockReplay),
   evaluation: () => get<Evaluation>('/evaluation/latest', mock.getMockEvaluation),
-  runEvaluation: () => post<{ message?: string }>('/evaluation/run', {}, () => ({ message: 'Sample pipeline evaluation is ready.' })),
+  runEvaluation: () => post<Evaluation>('/evaluation/run', {}, mock.getMockEvaluation),
   freshness: () => get<Freshness>('/health/sources', () => ({
     dataNotice: 'SAMPLE DATA (synthetic)',
     replay: { running: false, episodeId: 'none' },

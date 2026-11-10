@@ -1,5 +1,6 @@
 package com.aerocause.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,6 +9,7 @@ import lombok.Builder;
 
 @Entity
 @Table(name = "stations")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Station {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

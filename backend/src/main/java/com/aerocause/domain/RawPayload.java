@@ -1,11 +1,13 @@
 package com.aerocause.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
 
 @Entity
 @Table(name = "raw_payloads")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class RawPayload {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

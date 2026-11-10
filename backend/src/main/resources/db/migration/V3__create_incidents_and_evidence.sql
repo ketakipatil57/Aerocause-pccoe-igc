@@ -17,9 +17,9 @@ CREATE TABLE IF NOT EXISTS incidents (
     CONSTRAINT chk_incident_status CHECK (status IN ('NEW','UNDER_REVIEW','CONFIRMED','REJECTED','INCONCLUSIVE'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_incidents_station_detected
+CREATE INDEX idx_incidents_station_detected
     ON incidents (station_id, detected_at);
-CREATE INDEX IF NOT EXISTS idx_incidents_status
+CREATE INDEX idx_incidents_status
     ON incidents (status);
 
 CREATE TABLE IF NOT EXISTS evidence_items (
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS evidence_items (
     CONSTRAINT fk_evidence_incident FOREIGN KEY (incident_id) REFERENCES incidents(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_evidence_incident
+CREATE INDEX idx_evidence_incident
     ON evidence_items (incident_id);
 
 CREATE TABLE IF NOT EXISTS hypotheses (
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS hypotheses (
     ))
 );
 
-CREATE INDEX IF NOT EXISTS idx_hypotheses_incident
+CREATE INDEX idx_hypotheses_incident
     ON hypotheses (incident_id, rank);
 
 CREATE TABLE IF NOT EXISTS documents (

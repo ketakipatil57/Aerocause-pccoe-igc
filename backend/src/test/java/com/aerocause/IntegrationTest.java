@@ -194,6 +194,21 @@ class IntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    @Order(22)
+    void replayWarmupHistoryCreatesAnIncident() throws InterruptedException {
+        ReplayService.ReplayStatus status = replayService.start(1L, 1_000_000);
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
+        while (status.running() && System.nanoTime() < deadline) {
+            Thread.sleep(50);
+            status = replayService.getStatus();
+        }
+
+        assertThat(status.running()).isFalse();
+        assertThat(status.error()).isNull();
+        assertThat(incidentRepo.findByEpisodeIdOrderByDetectedAtAsc(1L)).isNotEmpty();
+    }
+
     // =========================================================================
     // Helper
     // =========================================================================

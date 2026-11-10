@@ -172,6 +172,20 @@ class FingerprintingServiceTest {
         assertThat(top.getType()).isEqualTo(Hypothesis.HypothesisType.INCONCLUSIVE);
     }
 
+    @Test
+    void missingWeatherAndFireDataAreRecordedAsMissingEvidence() {
+        FingerprintingInput input = new FingerprintingInput(
+                incident, Map.of("PM25", 95.0), Map.of("PM25", 42.0), List.of(),
+                List.of(), Map.of(), true, false);
+
+        service.fingerprint(input);
+
+        verify(evidenceRepo, atLeastOnce()).save(argThat(item ->
+                item.getDataJson().toLowerCase(Locale.ROOT)
+                        .contains("fire hotspot data not available")
+                        || item.getDataJson().contains("Wind speed not recorded")));
+    }
+
     // -------------------------------------------------------------------------
     // Evidence IDs are present
     // -------------------------------------------------------------------------

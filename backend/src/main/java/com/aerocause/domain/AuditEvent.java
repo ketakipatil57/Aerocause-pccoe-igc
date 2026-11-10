@@ -1,11 +1,13 @@
 package com.aerocause.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
 
 @Entity
 @Table(name = "audit_events")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class AuditEvent {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

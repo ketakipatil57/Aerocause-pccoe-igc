@@ -304,10 +304,19 @@ public class FingerprintingService {
         AeroCauseProperties.FireHotspotRuleProps cfg =
                 props.getFingerprinting().getRules().getFireHotspot();
 
-        if (!in.fireHotspotEnabled()) {
+        boolean hotspotDataMissing = in.weatherWindow() == null || in.weatherWindow().isEmpty()
+                || in.weatherWindow().stream().noneMatch(w -> w.getFireHotspotUpwind() != null);
+        if (!in.fireHotspotEnabled() || hotspotDataMissing) {
+            String reason = !in.fireHotspotEnabled()
+                    ? "provider disabled"
+                    : "weather observations are missing";
+            if (in.fireHotspotEnabled() && in.weatherWindow() != null
+                    && !in.weatherWindow().isEmpty()) {
+                reason = "fire-hotspot observations are missing";
+            }
             out.add(new RuleContribution(HypothesisType.BIOMASS_BURNING, 0, eid(n),
-                    "Fire hotspot provider is DISABLED (feature flag off).",
-                    "Fire hotspot data not available (provider disabled); biomass-burning hypothesis " +
+                    "Fire hotspot data is unavailable (" + reason + ").",
+                    "Fire hotspot data not available (" + reason + "); biomass-burning hypothesis " +
                     "cannot be confirmed or excluded via this indicator."));
             return n + 1;
         }

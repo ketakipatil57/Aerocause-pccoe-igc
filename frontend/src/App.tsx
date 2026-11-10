@@ -1,4 +1,4 @@
-import { createContext, lazy, Suspense, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -7,7 +7,7 @@ import {
   LoaderCircle, Menu, Moon, Play, Radio, RefreshCw, ShieldCheck, Siren, Sun, TriangleAlert,
   Wind, X, XCircle,
 } from 'lucide-react'
-import { api, formatError } from './api/client'
+import { api, ApiRequestError, formatError } from './api/client'
 import { stations } from './data/mock'
 import citizenI18n from './data/citizen-i18n.json'
 import citizenPrecautions from './data/citizen-precautions.json'
@@ -86,7 +86,13 @@ function AppShell() {
     localStorage.setItem('aerocause-theme', dark ? 'dark' : 'light')
   }, [dark])
   const fetchedAt = freshness.dataUpdatedAt
-  const stale = Boolean(fetchedAt && Date.now() - fetchedAt > 5 * 60_000)
+  const aiServiceStatus = isRecord(freshness.data?.data.aiService)
+    ? freshness.data.data.aiService : undefined
+  const providerStale = aiServiceStatus?.stale === true
+  const stale = providerStale || Boolean(fetchedAt && Date.now() - fetchedAt > 5 * 60_000)
+  const freshnessTitle = providerStale
+    ? `AI provider is stale: ${String(aiServiceStatus?.lastFailure ?? 'most recent request failed')}`
+    : 'Live OpenAQ and weather polling are disabled; sample replay is available.'
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -96,9 +102,9 @@ function AppShell() {
           <span><strong>AeroCause</strong><small>Air quality intelligence</small></span>
         </Link>
         <div className="topbar-right">
-          <div className={`freshness ${stale ? 'is-stale' : ''}`} title="Live OpenAQ and weather polling are disabled in this prototype">
+          <div className={`freshness ${stale ? 'is-stale' : ''}`} title={freshnessTitle}>
             <span className="freshness-dot" />
-            <span className="freshness-copy"><strong>DATA FRESHNESS</strong><small>{mode === 'MOCK' ? 'Local sample fixture' : 'Replay / sources status'} · {fetchedAt ? formatRelative(fetchedAt) : 'checking'}</small></span>
+            <span className="freshness-copy"><strong>DATA FRESHNESS</strong><small>{providerStale ? 'AI provider unavailable · retrying / fallback' : mode === 'MOCK' ? 'Local sample fixture' : 'Replay / sources status'} · {fetchedAt ? formatRelative(fetchedAt) : 'checking'}</small></span>
             {stale && <TriangleAlert size={15} aria-label="Source status is stale" />}
           </div>
           {mode === 'MOCK' && <span className="sample-badge"><span className="sample-dot" /> SAMPLE DATA (synthetic)</span>}
@@ -181,7 +187,7 @@ function IncidentDesk() {
   return (
     <div className="page-wrap">
       <PageTitle eyebrow="OPERATIONS · OVERVIEW" title="Incident desk" description="A clear view of detected air-quality events and their review state."
-        action={<Link className="button button-primary" to="/replay"><Play size={15} /> Start a replay</Link>} />
+        action={<Link className="button button-primary" to="/replay"><Play size={15} /> Start sample replay</Link>} />
       {query.isLoading ? <Skeleton rows={5} /> : query.isError ? <ErrorBanner message={formatError(query.error)} onRetry={() => void query.refetch()} /> : (
         <>
           <div className="summary-grid">
@@ -197,7 +203,7 @@ function IncidentDesk() {
             </div>
           </div>
           {filtered.length ? <div className="incident-grid">{filtered.map((incident) => <IncidentCard incident={incident} key={incident.id} />)}</div> :
-            <EmptyState icon={<Siren size={21} />} title="No incidents match these filters">Try a different status or pollutant, or start a sample replay to create a new event.</EmptyState>}
+            <EmptyState icon={<Siren size={21} />} title={data.length ? 'No incidents match these filters' : 'Ready for a sample replay'} action={!data.length ? <Link className="button button-primary" to="/replay"><Play size={15} /> Start sample replay</Link> : undefined}>{data.length ? 'Try a different status or pollutant.' : 'The incident desk is clean. Start a synthetic replay to populate it with clearly labelled sample data.'}</EmptyState>}
           <div className="footnote"><Info size={14} /> QC labels indicate screening signals only; they are not a field diagnosis.</div>
         </>
       )}
@@ -272,7 +278,13 @@ function IncidentDetailPage() {
   useSource(neighborReadingsQuery.data)
   const investigate = useMutation({
     mutationFn: () => api.investigate(id),
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['incident', id] }); await queryClient.invalidateQueries({ queryKey: ['audit', id] }) },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['incident', id] }),
+        queryClient.invalidateQueries({ queryKey: ['audit', id] }),
+        queryClient.invalidateQueries({ queryKey: ['freshness'] }),
+      ])
+    },
   })
   const review = useMutation({
     mutationFn: () => api.review(id, { reviewer: reviewer.trim() || 'Duty officer', decision, comment }),
@@ -457,14 +469,44 @@ function ReviewBar({ decision, setDecision, reviewer, setReviewer, comment, setC
 
 function ReplayPage() {
   const queryClient = useQueryClient()
+  const demoCancelled = useRef(false)
   const episodeQuery = useQuery({ queryKey: ['episodes'], queryFn: api.episodes })
   const replayQuery = useReplayStatus()
   useSource(episodeQuery.data)
   useSource(replayQuery.data)
   const [episodeId, setEpisodeId] = useState<number>(1)
   const [speed, setSpeed] = useState(60)
-  const start = useMutation({ mutationFn: () => api.startReplay(episodeId, speed), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['replay-status'] }) })
-  const stop = useMutation({ mutationFn: api.stopReplay, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['replay-status'] }) })
+  const [demoMode, setDemoMode] = useState(false)
+  const start = useMutation({ mutationFn: (id: number) => api.startReplay(id, speed), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['replay-status'] }) })
+  const demo = useMutation({
+    mutationFn: async (ids: number[]) => {
+      for (const id of ids) {
+        if (demoCancelled.current) break
+        const started = await api.startReplay(id, 3600)
+        if (!started.data.running || started.data.episodeId !== id) {
+          throw new Error(started.data.message || `Could not start episode ${id}.`)
+        }
+        let current = await api.replayStatus()
+        while (current.data.running && !demoCancelled.current) {
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          current = await api.replayStatus()
+        }
+        if (current.data.error) throw new Error(current.data.error)
+      }
+    },
+    onSettled: async () => {
+      setDemoMode(false)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['replay-status'] }),
+        queryClient.invalidateQueries({ queryKey: ['incidents'] }),
+      ])
+    },
+  })
+  const stop = useMutation({
+    mutationFn: api.stopReplay,
+    onMutate: () => { demoCancelled.current = true; setDemoMode(false) },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['replay-status'] }),
+  })
   const incidentsQuery = useQuery({
     queryKey: ['incidents', 'replay'],
     queryFn: api.incidents,
@@ -474,24 +516,37 @@ function ReplayPage() {
   const episodes = episodeQuery.data?.data ?? []
   const replayIncidents = incidentsQuery.data?.data ?? []
   const currentEpisode = episodes.find((episode) => episode.id === episodeId)
+  const startDemo = () => {
+    const ids = ['DUST', 'SENSOR_FAULT', 'INCONCLUSIVE'].map((type) =>
+      episodes.find((episode) => episode.synthetic && episode.expectedTopHypothesis === type)?.id,
+    )
+    const orderedIds = ids.filter((id): id is number => id !== undefined)
+    if (orderedIds.length !== 3) return
+    demoCancelled.current = false
+    setDemoMode(true)
+    demo.mutate(orderedIds)
+  }
   if (episodeQuery.isLoading) return <div className="page-wrap"><Skeleton rows={5} /></div>
   if (episodeQuery.isError) return <div className="page-wrap"><ErrorBanner message={formatError(episodeQuery.error)} onRetry={() => void episodeQuery.refetch()} /></div>
   return <div className="page-wrap">
-    <PageTitle eyebrow="OPERATIONS · REPLAY" title="Episode replay" description="Run a synthetic episode through the same quality and incident pipeline." />
+    <PageTitle eyebrow="OPERATIONS · REPLAY" title="Episode replay" description="Run synthetic or imported real episodes through the same quality and incident pipeline." />
     <div className="replay-layout">
       <section className="replay-control panel">
         <div className="panel-title"><span className="panel-icon"><Play size={17} /></span><div><h2>Configure replay</h2><p>Choose an episode and playback speed.</p></div></div>
+        {episodes.length ? <>
         <label htmlFor="episode-select">Episode</label>
-        <select id="episode-select" value={episodeId} onChange={(event) => setEpisodeId(Number(event.target.value))} disabled={Boolean(status?.running)}>{episodes.map((episode) => <option key={episode.id} value={episode.id}>{episode.name}</option>)}</select>
-        {currentEpisode && <div className="episode-description"><p>{currentEpisode.description}</p><span>Expected top hypothesis · <strong>{humanize(currentEpisode.expectedTopHypothesis)}</strong></span></div>}
+        <select id="episode-select" value={episodeId} onChange={(event) => setEpisodeId(Number(event.target.value))} disabled={Boolean(status?.running) || demoMode}>{episodes.map((episode) => <option key={episode.id} value={episode.id}>{episode.name} · {episode.synthetic ? 'synthetic' : 'real'}</option>)}</select>
+        {currentEpisode && <div className="episode-description"><p>{currentEpisode.description}</p><span>Expected top hypothesis · <strong>{currentEpisode.expectedTopHypothesis ? humanize(currentEpisode.expectedTopHypothesis) : 'Not labelled (human evaluation pending)'}</strong></span></div>}
         <label htmlFor="speed-select">Playback speed</label>
-        <select id="speed-select" value={speed} onChange={(event) => setSpeed(Number(event.target.value))} disabled={Boolean(status?.running)}><option value={1}>1× · real time</option><option value={60}>60× · demo</option><option value={120}>120× · fast demo</option></select>
+        <select id="speed-select" value={speed} onChange={(event) => setSpeed(Number(event.target.value))} disabled={Boolean(status?.running) || demoMode}><option value={1}>1× · real time</option><option value={60}>60× · demo</option><option value={120}>120× · fast demo</option></select>
         {currentEpisode?.synthetic && <div className="replay-synthetic"><SampleNotice /><span>Sample episode; not live environmental data.</span></div>}
         <div className="replay-controls">
-          <button className="button button-primary" onClick={() => start.mutate()} disabled={Boolean(status?.running) || start.isPending || !currentEpisode}>{start.isPending ? <LoaderCircle className="spin" size={16} /> : <Play size={15} />}{status?.running ? 'Replay running' : 'Start replay'}</button>
-          <button className="button button-secondary" onClick={() => stop.mutate()} disabled={!status?.running || stop.isPending}><X size={15} />Stop</button>
+          <button className="button button-primary" onClick={() => start.mutate(episodeId)} disabled={Boolean(status?.running) || start.isPending || demoMode || !currentEpisode}>{start.isPending ? <LoaderCircle className="spin" size={16} /> : <Play size={15} />}{status?.running ? 'Replay running' : 'Start replay'}</button>
+          <button className="button button-secondary" onClick={() => { demoCancelled.current = true; setDemoMode(false); stop.mutate() }} disabled={!status?.running || stop.isPending}><X size={15} />Stop</button>
         </div>
-        {(start.error || stop.error) && <div className="inline-error"><AlertCircle size={15} />{formatError(start.error ?? stop.error)}</div>}
+        <div className="demo-mode panel"><div className="demo-mode-copy"><strong>Recommended demo mode</strong><p>Run the synthetic dust → sensor fault → ambiguous (INCONCLUSIVE) sequence.</p></div><button className="button button-secondary" onClick={startDemo} disabled={Boolean(status?.running) || demoMode || demo.isPending}>{demoMode ? <LoaderCircle className="spin" size={15} /> : <Play size={14} />}{demoMode ? 'Demo sequence running' : 'Run demo mode'}</button></div>
+        {(start.error || stop.error || demo.error) && <div className="inline-error" role="alert"><AlertCircle size={15} />{formatError(start.error ?? stop.error ?? demo.error)}</div>}
+        </> : <EmptyState icon={<Info size={20} />} title="No episodes are available">Add sample CSVs to data/episodes or import real CSVs from data/real, then refresh this page.</EmptyState>}
       </section>
       <section className="replay-monitor panel">
         <div className="panel-title"><span className="panel-icon"><Radio size={17} /></span><div><h2>Replay monitor</h2><p>Live processing status and created incidents</p></div><span className={`replay-state ${status?.running ? 'state-running' : ''}`}><span />{status?.running ? 'IN PROGRESS' : 'IDLE'}</span></div>
@@ -518,27 +573,43 @@ function EvaluationPage() {
     queryFn: api.evaluation,
     refetchInterval: replay.data?.data.running ? pollingMs : false,
   })
-  const run = useMutation({ mutationFn: api.runEvaluation, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['evaluation'] }) })
+  const run = useMutation({
+    mutationFn: api.runEvaluation,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['evaluation'] }),
+  })
+  const replayRunning = Boolean(replay.data?.data.running)
+  const evaluationUnavailable = replay.isLoading || replay.isError || !replay.data
+  const runDisabled = run.isPending || replayRunning || evaluationUnavailable
+  const runEvaluation = () => {
+    if (!replayRunning && !evaluationUnavailable) run.mutate()
+  }
+  const replayConflict = replayRunning || (run.error instanceof ApiRequestError && run.error.status === 409)
   useSource(resultQuery.data)
   if (resultQuery.isLoading) return <div className="page-wrap"><Skeleton rows={5} /></div>
   if (resultQuery.isError) return <div className="page-wrap"><ErrorBanner message={formatError(resultQuery.error)} onRetry={() => void resultQuery.refetch()} /></div>
   const result = resultQuery.data?.data
   const rows = result?.episodes ?? []
+  const syntheticRows = result?.syntheticEpisodes ?? rows.filter((row) => row.synthetic)
+  const realRows = result?.realEpisodes ?? rows.filter((row) => !row.synthetic)
   return <div className="page-wrap">
-    <PageTitle eyebrow="QUALITY · EVALUATION" title="Pipeline evaluation" description="Compare configured expected outcomes with the latest incident hypotheses." action={<button className="button button-primary" onClick={() => run.mutate()} disabled={run.isPending}>{run.isPending ? <LoaderCircle size={15} className="spin" /> : <RefreshCw size={15} />}{run.isPending ? 'Starting…' : 'Run evaluation'}</button>} />
-    <div className="evaluation-disclaimer"><TriangleAlert size={17} /><p><strong>Results on synthetic sample episodes are a pipeline test, not an accuracy claim.</strong><span>Evaluation uses seeded episodes and may report “NONE” until an episode has been replayed.</span></p><SampleNotice /></div>
-    {run.error && <ErrorBanner message={formatError(run.error)} />}
-    {run.data?.data.message && <div className="run-message"><Info size={15} />{run.data.data.message}</div>}
-    {result && <div className="summary-grid eval-metrics"><MetricCard label="Episodes evaluated" value={String(result.summary.total).padStart(2, '0')} detail="Configured sample set" icon={<Activity size={18} />} /><MetricCard label="Expected match" value={String(result.summary.pass).padStart(2, '0')} detail="Matching top hypothesis" icon={<CheckCircle2 size={18} />} /><MetricCard label="Needs inspection" value={String(result.summary.fail).padStart(2, '0')} detail="Mismatch or not replayed" icon={<TriangleAlert size={18} />} /><MetricCard label="Last updated" value={result.runAt ? formatTime(result.runAt) : '—'} detail="Latest backend result" icon={<Clock3 size={18} />} /></div>}
-    <div className="section-heading eval-table-heading"><div><h2>Episode results</h2><p>Each row represents one configured replay episode.</p></div></div>
-    {rows.length ? <div className="table-card eval-table"><table><thead><tr><th>Episode</th><th>Expected hypothesis</th><th>Actual top hypothesis</th><th>Fault detected</th><th>Unsupported claims</th><th>Citation validity</th><th>Validator</th><th>Result</th></tr></thead><tbody>{rows.map((row) => <EvaluationRow key={row.episodeId} row={row} />)}</tbody></table></div> :
-      <EmptyState icon={<Activity size={20} />} title="No evaluation results yet">Start a sample episode replay, then refresh results here.</EmptyState>}
-    <div className="footnote"><Info size={14} />Unsupported-claim counts, citation validity and time-to-brief are not provided by the current evaluation API; they are intentionally shown as unavailable rather than inferred.</div>
+    <PageTitle eyebrow="QUALITY · EVALUATION" title="Pipeline evaluation" description="Compare configured expected outcomes with the latest incident hypotheses." action={<button className="button button-primary" onClick={runEvaluation} disabled={runDisabled}>{run.isPending ? <LoaderCircle size={15} className="spin" /> : <RefreshCw size={15} />}{run.isPending ? 'Starting…' : 'Run evaluation'}</button>} />
+    <div className="evaluation-disclaimer"><TriangleAlert size={17} /><p><strong>Results on synthetic sample episodes are a pipeline test, not an accuracy claim.</strong><span>Real episodes are listed separately and remain unlabelled until a human supplies expected outcomes.</span></p><SampleNotice /></div>
+    {replayConflict && <div className="evaluation-conflict" role="status"><Info size={16} /><span>Active replay in progress. Please stop the replay from the Replay page before running pipeline evaluation.</span></div>}
+    {evaluationUnavailable && <div className="evaluation-conflict" role="alert"><AlertCircle size={16} /><span>Replay status is unavailable. Refresh it before running pipeline evaluation.</span></div>}
+    {run.error && !replayConflict && <ErrorBanner message={formatError(run.error)} />}
+    {result && result.runAt && <div className={`run-message ${result.buildPass ? '' : 'run-message-fail'}`} role={result.buildPass ? 'status' : 'alert'}><Info size={15} />{result.buildPass ? 'Evaluation build gate passed: final briefs have no validator violations.' : `Evaluation build gate failed: ${result.unsupportedClaimsFinalTotal} final unsupported claims; check validator availability and citations.`}</div>}
+    {result && result.runAt && <div className="summary-grid eval-metrics"><MetricCard label="Episodes evaluated" value={String(result.summary.total).padStart(2, '0')} detail="Synthetic and real datasets" icon={<Activity size={18} />} /><MetricCard label="Expected match" value={String(result.summary.pass).padStart(2, '0')} detail="Labelled synthetic episodes" icon={<CheckCircle2 size={18} />} /><MetricCard label="Needs inspection" value={String(result.summary.fail).padStart(2, '0')} detail="Labelled mismatches" icon={<TriangleAlert size={18} />} /><MetricCard label="Build gate" value={result.buildPass ? 'PASS' : 'FAIL'} detail={`${result.unsupportedClaimsFinalTotal} final unsupported claims`} icon={<ShieldCheck size={18} />} /></div>}
+    {syntheticRows.length > 0 && <><div className="section-heading eval-table-heading"><div><h2>Synthetic episodes</h2><p>Seeded pipeline fixtures; expected labels are test metadata only.</p></div><SampleNotice /></div><div className="table-card eval-table"><table><thead><tr><th>Episode</th><th>Expected</th><th>Actual top hypothesis</th><th>Fault expected / flagged</th><th>First-attempt violations</th><th>Final unsupported claims</th><th>Citations valid</th><th>Time to brief</th><th>Build</th></tr></thead><tbody>{syntheticRows.map((row) => <EvaluationRow key={row.episodeId} row={row} />)}</tbody></table></div></>}
+    {realRows.length > 0 && <><div className="section-heading eval-table-heading"><div><h2>Real episodes</h2><p>Expected labels are blank unless supplied by a human; these rows are not scored for accuracy.</p></div></div><div className="table-card eval-table"><table><thead><tr><th>Episode</th><th>Expected</th><th>Actual top hypothesis</th><th>Fault expected / flagged</th><th>First-attempt violations</th><th>Final unsupported claims</th><th>Citations valid</th><th>Time to brief</th><th>Build</th></tr></thead><tbody>{realRows.map((row) => <EvaluationRow key={row.episodeId} row={row} />)}</tbody></table></div></>}
+    {!syntheticRows.length && !realRows.length && <EmptyState icon={<Activity size={20} />} title="Evaluation is ready to run">Run the harness to replay every configured episode, generate validated briefs, and export a report.</EmptyState>}
+    {result?.runAt && <div className="footnote"><Info size={14} />Detailed CSV and Markdown results are written to docs/evaluation-results.csv and docs/evaluation-results.md. Any final validator violation fails the build gate.</div>}
   </div>
 }
 
 function EvaluationRow({ row }: { row: EvaluationResult }) {
-  return <tr><td><strong>{row.name}</strong><small className="table-subline">Episode {row.episodeId} · synthetic</small></td><td>{humanize(row.expected)}</td><td>{row.actual === 'NONE' ? <span className="no-result">Not replayed</span> : humanize(row.actual)}</td><td><span className="not-reported">{row.actual === 'SENSOR_FAULT' ? 'Flagged by rule' : row.actual === 'NONE' ? '—' : 'Not reported'}</span></td><td><span className="not-reported">Not reported</span></td><td><span className="not-reported">Not reported</span></td><td><span className="not-reported">Not reported</span></td><td><span className={`result-chip ${row.pass ? 'result-pass' : 'result-fail'}`}>{row.pass ? <CheckCircle2 size={13} /> : <TriangleAlert size={13} />}{row.pass ? 'Match' : 'Review'}</span></td></tr>
+  const expectedFault = row.expectedFault === null ? '—' : row.expectedFault ? 'Yes' : 'No'
+  const buildIssue = row.buildFailure ? <small className="table-subline">{row.buildFailure}</small> : null
+  return <tr><td><strong>{row.name}</strong><small className="table-subline">Episode {row.episodeId} · {row.synthetic ? 'synthetic' : 'real'}</small></td><td>{row.expected ? humanize(row.expected) : <span className="not-reported">Not labelled</span>}</td><td>{row.actual === 'NONE' ? <span className="no-result">No incident</span> : humanize(row.actual)}</td><td>{expectedFault} / {row.sensorFaultFlagged ? 'Yes' : 'No'}</td><td>{row.validatorAvailable ? row.firstAttemptValidatorViolations : 'Unavailable'}</td><td>{row.unsupportedClaimsFinal}</td><td>{row.citationsValid ? 'Valid' : 'Invalid'}</td><td>{row.timeToBriefMs === null ? '—' : `${formatNumber(row.timeToBriefMs)} ms`}</td><td><span className={`result-chip ${row.buildPass ? 'result-pass' : 'result-fail'}`}>{row.buildPass ? <CheckCircle2 size={13} /> : <TriangleAlert size={13} />}{row.buildPass ? 'Pass' : 'Fail'}</span>{buildIssue}</td></tr>
 }
 
 function CitizenPage() {
@@ -557,7 +628,7 @@ function CitizenPage() {
   if (aqiQuery.isError || !aqi) return <div className="page-wrap"><ErrorBanner message={aqiQuery.error ? formatError(aqiQuery.error) : 'Air quality is unavailable.'} onRetry={() => void aqiQuery.refetch()} /></div>
   const summary: CitizenSummary | undefined = summaryQuery.data?.data
   const labels = citizenI18n[language]
-  const precautionText = citizenPrecautions.categories[aqi.category as keyof typeof citizenPrecautions.categories] ?? 'Template placeholder — replace with reviewed official guidance.'
+  const healthImpact = citizenPrecautions.categories[aqi.category as keyof typeof citizenPrecautions.categories]
   return <div className="page-wrap citizen-page">
     <PageTitle eyebrow="PUBLIC INFORMATION · CITIZEN VIEW" title="Air quality, clearly explained" description="A plain-language view of the latest available sample reading." action={<SampleNotice />} />
     <div className="citizen-toolbar"><label htmlFor="citizen-station">{labels.station}</label><div className="select-with-icon"><Gauge size={16} /><select id="citizen-station" value={stationId} onChange={(event) => setStationId(Number(event.target.value))}>{stations.map((station) => <option key={station.id} value={station.id}>{station.name} · {station.city}</option>)}</select><ChevronDown size={14} /></div><div className="language-switch" role="group" aria-label="Choose language">{([['en', 'English'], ['hi', 'हिन्दी'], ['mr', 'मराठी']] as const).map(([code, name]) => <button key={code} className={language === code ? 'language-active' : ''} onClick={() => setLanguage(code)}>{name}</button>)}</div></div>
@@ -568,7 +639,7 @@ function CitizenPage() {
     {summaryQuery.isError && <div className="inline-error"><Info size={15} />Using a built-in plain-language template because the summary service is unavailable.</div>}
     <div className="citizen-info-grid">
       <section className="citizen-info-card panel"><div className="citizen-card-head"><span className="citizen-card-icon why-icon"><Wind size={17} /></span><div><h3>{labels.whyHigh}</h3><small>{labels.uncertainCause}</small></div></div><p className="citizen-summary-text">{summary?.summary ?? 'A summary is being prepared from available evidence.'}</p>{(summary?.needs_native_speaker_review || language !== 'en') && <span className="native-review"><Info size={12} />Needs native-speaker review · {labels.needsReview}</span>}</section>
-      <section className="citizen-info-card panel"><div className="citizen-card-head"><span className="citizen-card-icon precaution-icon"><ShieldCheck size={17} /></span><div><h3>{labels.precautions}</h3><small>{labels.precautionPlaceholder}</small></div></div><div className="placeholder-guidance"><span className="placeholder-tag">PLACEHOLDER · NOT HEALTH ADVICE</span><p>{precautionText}</p><small>The project team must replace this placeholder with reviewed official guidance before public use.</small></div></section>
+      <section className="citizen-info-card panel"><div className="citizen-card-head"><span className="citizen-card-icon precaution-icon"><ShieldCheck size={17} /></span><div><h3>{labels.precautions}</h3><small>{labels.healthImpactSource}</small></div></div><div className="health-impact-guidance"><p>{healthImpact ?? 'No CPCB health-impact description is available for this category.'}</p><small>{citizenPrecautions._notice} <a href={citizenPrecautions.source.url} target="_blank" rel="noreferrer">Source: {citizenPrecautions.source.publisher}</a></small>{language !== 'en' && <span className="native-review"><Info size={12} />English source text · needs native-speaker review for translation</span>}</div></section>
     </div>
     <section className="report-card panel"><div className="report-icon"><Radio size={18} /></div><div><h3>{labels.report}</h3><p>For official reporting channels and current public guidance, use the configured government portal.</p></div><a className="button button-secondary" href={reportUrl} target="_blank" rel="noreferrer">{labels.officialPortal} <ArrowUpRight size={15} /></a></section>
     <div className="citizen-bottom-note"><ShieldCheck size={15} />This prototype is not an official government AQI service. Verify current conditions with the relevant authority.</div>

@@ -128,8 +128,8 @@ export interface Episode {
   name: string
   description: string
   synthetic: boolean
-  expectedTopHypothesis: string
-  expectedFault: boolean
+  expectedTopHypothesis: string | null
+  expectedFault: boolean | null
   durationHours: number
 }
 
@@ -139,22 +139,40 @@ export interface ReplayStatus {
   progress: number
   readingsProcessed: number
   incidentsCreated: number
+  message?: string
+  error?: string | null
 }
 
 export interface EvaluationResult {
   episodeId: number
   name: string
-  expected: string
+  synthetic: boolean
+  expected: string | null
   actual: string
   confidence: string
   incidentCount: number
-  pass: boolean
+  expectedFault: boolean | null
+  sensorFaultFlagged: boolean
+  firstAttemptValidatorViolations: number
+  unsupportedClaimsFinal: number
+  validatorAvailable: boolean
+  citationsValid: boolean
+  timeToBriefMs: number | null
+  pass: boolean | null
+  buildPass: boolean
+  buildFailure?: string
   dataNotice?: string
 }
 
 export interface Evaluation {
   runAt: string
+  buildPass: boolean
+  unsupportedClaimsFinalTotal: number
+  validatorAvailable: boolean
+  citationsValid: boolean
   episodes: EvaluationResult[]
+  syntheticEpisodes: EvaluationResult[]
+  realEpisodes: EvaluationResult[]
   summary: { total: number; pass: number; fail: number }
   dataNotice?: string
   decisionSupportNotice?: string

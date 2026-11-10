@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
     CONSTRAINT fk_audit_incident FOREIGN KEY (incident_id) REFERENCES incidents(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_audit_incident
+CREATE INDEX idx_audit_incident
     ON audit_events (incident_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_audit_event_type
+CREATE INDEX idx_audit_event_type
     ON audit_events (event_type, created_at);

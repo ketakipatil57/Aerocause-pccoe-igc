@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS readings (
     id             BIGINT AUTO_INCREMENT PRIMARY KEY,
     station_id     BIGINT       NOT NULL,
     pollutant      VARCHAR(20)  NOT NULL,
-    value          DOUBLE       NOT NULL,
+    reading_value  DOUBLE       NOT NULL,
     unit           VARCHAR(20)  NOT NULL,
     observed_at    DATETIME     NOT NULL,
     fetched_at     DATETIME     NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS readings (
     CONSTRAINT fk_readings_station FOREIGN KEY (station_id) REFERENCES stations(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_readings_station_pollutant_observed
+CREATE INDEX idx_readings_station_pollutant_observed
     ON readings (station_id, pollutant, observed_at);
 
 CREATE TABLE IF NOT EXISTS weather_obs (
@@ -52,5 +52,5 @@ CREATE TABLE IF NOT EXISTS weather_obs (
     CONSTRAINT fk_weather_station FOREIGN KEY (station_id) REFERENCES stations(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_weather_station_observed
+CREATE INDEX idx_weather_station_observed
     ON weather_obs (station_id, observed_at);

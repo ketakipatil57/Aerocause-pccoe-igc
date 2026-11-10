@@ -203,13 +203,38 @@ export function stopMockReplay(): ReplayStatus {
 }
 
 export function getMockEvaluation(): Evaluation {
+  const rows = episodes.map((episode) => {
+    const actual = episode.id === 1 ? 'DUST' : episode.id === 4 ? 'SENSOR_FAULT' : episode.id === 5 ? 'INCONCLUSIVE' : 'INCONCLUSIVE'
+    return {
+      episodeId: episode.id,
+      name: episode.name,
+      synthetic: true,
+      expected: episode.expectedTopHypothesis,
+      actual,
+      confidence: 'MEDIUM',
+      incidentCount: episode.id <= 3 ? 1 : 0,
+      expectedFault: episode.expectedFault,
+      sensorFaultFlagged: actual === 'SENSOR_FAULT',
+      firstAttemptValidatorViolations: 0,
+      unsupportedClaimsFinal: 0,
+      validatorAvailable: true,
+      citationsValid: true,
+      timeToBriefMs: null,
+      pass: actual === episode.expectedTopHypothesis,
+      buildPass: true,
+      dataNotice: 'SAMPLE DATA (synthetic)',
+    }
+  })
   return {
     runAt: new Date().toISOString(),
-    episodes: episodes.map((episode) => {
-      const actual = episode.id === 1 ? 'DUST' : episode.id === 4 ? 'SENSOR_FAULT' : episode.id === 5 ? 'INCONCLUSIVE' : 'INCONCLUSIVE'
-      return { episodeId: episode.id, name: episode.name, expected: episode.expectedTopHypothesis, actual, confidence: 'MEDIUM', incidentCount: episode.id <= 3 ? 1 : 0, pass: actual === episode.expectedTopHypothesis, dataNotice: 'SAMPLE DATA (synthetic)' }
-    }),
-    summary: { total: 5, pass: 3, fail: 2 },
+    episodes: rows,
+    syntheticEpisodes: rows,
+    realEpisodes: [],
+    buildPass: true,
+    unsupportedClaimsFinalTotal: 0,
+    validatorAvailable: true,
+    citationsValid: true,
+    summary: { total: rows.length, pass: rows.filter((row) => row.pass).length, fail: rows.filter((row) => !row.pass).length },
     dataNotice: 'SAMPLE DATA (synthetic)',
     decisionSupportNotice: 'Pipeline test only; not an accuracy claim.',
   }

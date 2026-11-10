@@ -1,5 +1,7 @@
 package com.aerocause.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
@@ -7,11 +9,13 @@ import java.time.Instant;
 @Entity
 @Table(name = "weather_obs",
        uniqueConstraints = @UniqueConstraint(columnNames = {"station_id", "observed_at"}))
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class WeatherObs {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "station_id", nullable = false)
     private Station station;
@@ -28,7 +32,7 @@ public class WeatherObs {
     @Column(name = "boundary_layer_height")
     private Double boundaryLayerHeight;
 
-    @Column(name = "fire_hotspot_upwind", nullable = false)
+    @Column(name = "fire_hotspot_upwind")
     @Builder.Default
     private Boolean fireHotspotUpwind = false;
 

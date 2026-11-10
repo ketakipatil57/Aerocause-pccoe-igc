@@ -128,6 +128,7 @@ def test_investigation_retries_with_violations_then_passes():
     assert any("hypothesis_mismatch" in item for item in provider.calls[1])
     assert response.validator_status == "RETRIED"
     assert response.violations == []
+    assert any("hypothesis_mismatch" in item for item in response.first_attempt_violations)
     assert response.llm_mode == "LIVE"
 
 
@@ -138,6 +139,7 @@ def test_second_invalid_attempt_returns_template_fallback_with_violations():
     assert provider.calls == 2
     assert response.validator_status == "TEMPLATE_FALLBACK"
     assert response.brief.hypotheses[0].type == "INCONCLUSIVE"
+    assert any("hypothesis_mismatch" in item for item in response.first_attempt_violations)
     assert any("hypothesis_mismatch" in item for item in response.violations)
     assert "no official source was found" in response.brief.summary.lower()
 
@@ -175,6 +177,42 @@ def test_endpoints_accept_backend_package_and_return_empty_corpus_details(tmp_pa
     assert "no official source was found" in investigation.json()["brief"]["summary"].lower()
     assert investigation.json()["brief"]["recommended_actions"] == []
     assert retrieval.json() == {"passages": []}
+
+
+def test_citizen_summary_allows_frontend_cors_preflight(tmp_path):
+    client = TestClient(create_app(
+        settings=settings(tmp_path),
+        retrieval=EmptyRetrieval(),
+        provider=MockBriefProvider(),
+    ))
+
+    response = client.options(
+        "/citizen-summary",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert response.headers["access-control-allow-credentials"] == "true"
+
+    citizen_summary = client.post(
+        "/citizen-summary",
+        headers={"Origin": "http://127.0.0.1:5173"},
+        json={
+            "aqi": 156,
+            "category": "Poor",
+            "evidence_summary": "An uncertain particulate pattern",
+            "language": "en",
+            "precaution_templates": [],
+        },
+    )
+    assert citizen_summary.status_code == 200
+    assert citizen_summary.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+    assert citizen_summary.headers["access-control-allow-credentials"] == "true"
 
 
 def test_citizen_summary_uses_language_template_and_only_supplied_precautions(tmp_path):

@@ -52,6 +52,8 @@ class InvestigationResponse(StrictModel):
     validator_status: Literal["PASSED", "RETRIED", "TEMPLATE_FALLBACK"]
     llm_mode: Literal["LIVE", "MOCK"]
     violations: list[str]
+    first_attempt_violations: list[str]
+    final_violations: list[str]
     retrieved_passages: list[PassageResponse]
 
 

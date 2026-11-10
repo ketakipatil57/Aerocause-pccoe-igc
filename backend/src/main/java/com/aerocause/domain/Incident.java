@@ -1,5 +1,7 @@
 package com.aerocause.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
@@ -7,11 +9,13 @@ import java.util.List;
 
 @Entity
 @Table(name = "incidents")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Incident {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "station_id", nullable = false)
     private Station station;
@@ -46,15 +50,19 @@ public class Incident {
     @Builder.Default
     private Boolean synthetic = false;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "incident", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Hypothesis> hypotheses;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "incident", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<EvidenceItem> evidenceItems;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "incident", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Brief> briefs;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "incident", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Review> reviews;
 

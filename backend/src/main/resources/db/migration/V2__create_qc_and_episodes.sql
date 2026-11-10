@@ -27,5 +27,5 @@ CREATE TABLE IF NOT EXISTS qc_flags (
     CONSTRAINT fk_qc_flag_station FOREIGN KEY (station_id) REFERENCES stations(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_qc_flags_station_pollutant
+CREATE INDEX idx_qc_flags_station_pollutant
     ON qc_flags (station_id, pollutant, window_start);
